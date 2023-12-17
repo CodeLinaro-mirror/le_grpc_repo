@@ -112,7 +112,7 @@ void RegisterServiceConfigChannelArgFilter(
                        &kServiceConfigChannelArgFilter)
       .ExcludeFromMinimalStack()
       .IfHasChannelArg(GRPC_ARG_SERVICE_CONFIG)
-      .Before({&ClientMessageSizeFilter::kFilter});
+      .Before<ClientMessageSizeFilter>();
 }
 
 }  // namespace grpc_core

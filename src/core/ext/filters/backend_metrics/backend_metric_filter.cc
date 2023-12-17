@@ -150,7 +150,7 @@ ArenaPromise<ServerMetadataHandle> BackendMetricFilter::MakeCallPromise(
 
 void RegisterBackendMetricFilter(CoreConfiguration::Builder* builder) {
   builder->channel_init()
-      ->RegisterFilter(GRPC_SERVER_CHANNEL, &BackendMetricFilter::kFilter)
+      ->RegisterFilter<BackendMetricFilter>(GRPC_SERVER_CHANNEL)
       .IfHasChannelArg(GRPC_ARG_SERVER_CALL_METRIC_RECORDING);
 }
 
