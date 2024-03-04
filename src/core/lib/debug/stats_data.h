@@ -76,6 +76,29 @@ class HistogramCollector_65536_26 {
  private:
   std::atomic<uint64_t> buckets_[26]{};
 };
+class HistogramCollector_100_20;
+class Histogram_100_20 {
+ public:
+  static int BucketFor(int value);
+  const uint64_t* buckets() const { return buckets_; }
+  friend Histogram_100_20 operator-(const Histogram_100_20& left,
+                                    const Histogram_100_20& right);
+
+ private:
+  friend class HistogramCollector_100_20;
+  uint64_t buckets_[20]{};
+};
+class HistogramCollector_100_20 {
+ public:
+  void Increment(int value) {
+    buckets_[Histogram_100_20::BucketFor(value)].fetch_add(
+        1, std::memory_order_relaxed);
+  }
+  void Collect(Histogram_100_20* result) const;
+
+ private:
+  std::atomic<uint64_t> buckets_[20]{};
+};
 class HistogramCollector_16777216_20;
 class Histogram_16777216_20 {
  public:
@@ -196,6 +219,14 @@ struct GlobalStats {
     kWorkSerializerWorkTimeMs,
     kWorkSerializerWorkTimePerItemMs,
     kWorkSerializerItemsPerRun,
+    kChaoticGoodSendmsgsPerWriteControl,
+    kChaoticGoodRecvmsgsPerReadControl,
+    kChaoticGoodSendmsgsPerWriteData,
+    kChaoticGoodRecvmsgsPerReadData,
+    kChaoticGoodThreadHopsPerWriteControl,
+    kChaoticGoodThreadHopsPerReadControl,
+    kChaoticGoodThreadHopsPerWriteData,
+    kChaoticGoodThreadHopsPerReadData,
     COUNT
   };
   GlobalStats();
@@ -256,6 +287,14 @@ struct GlobalStats {
   Histogram_100000_20 work_serializer_work_time_ms;
   Histogram_100000_20 work_serializer_work_time_per_item_ms;
   Histogram_10000_20 work_serializer_items_per_run;
+  Histogram_100_20 chaotic_good_sendmsgs_per_write_control;
+  Histogram_100_20 chaotic_good_recvmsgs_per_read_control;
+  Histogram_100_20 chaotic_good_sendmsgs_per_write_data;
+  Histogram_100_20 chaotic_good_recvmsgs_per_read_data;
+  Histogram_100_20 chaotic_good_thread_hops_per_write_control;
+  Histogram_100_20 chaotic_good_thread_hops_per_read_control;
+  Histogram_100_20 chaotic_good_thread_hops_per_write_data;
+  Histogram_100_20 chaotic_good_thread_hops_per_read_data;
   HistogramView histogram(Histogram which) const;
   std::unique_ptr<GlobalStats> Diff(const GlobalStats& other) const;
 };
@@ -414,6 +453,31 @@ class GlobalStatsCollector {
   void IncrementWorkSerializerItemsPerRun(int value) {
     data_.this_cpu().work_serializer_items_per_run.Increment(value);
   }
+  void IncrementChaoticGoodSendmsgsPerWriteControl(int value) {
+    data_.this_cpu().chaotic_good_sendmsgs_per_write_control.Increment(value);
+  }
+  void IncrementChaoticGoodRecvmsgsPerReadControl(int value) {
+    data_.this_cpu().chaotic_good_recvmsgs_per_read_control.Increment(value);
+  }
+  void IncrementChaoticGoodSendmsgsPerWriteData(int value) {
+    data_.this_cpu().chaotic_good_sendmsgs_per_write_data.Increment(value);
+  }
+  void IncrementChaoticGoodRecvmsgsPerReadData(int value) {
+    data_.this_cpu().chaotic_good_recvmsgs_per_read_data.Increment(value);
+  }
+  void IncrementChaoticGoodThreadHopsPerWriteControl(int value) {
+    data_.this_cpu().chaotic_good_thread_hops_per_write_control.Increment(
+        value);
+  }
+  void IncrementChaoticGoodThreadHopsPerReadControl(int value) {
+    data_.this_cpu().chaotic_good_thread_hops_per_read_control.Increment(value);
+  }
+  void IncrementChaoticGoodThreadHopsPerWriteData(int value) {
+    data_.this_cpu().chaotic_good_thread_hops_per_write_data.Increment(value);
+  }
+  void IncrementChaoticGoodThreadHopsPerReadData(int value) {
+    data_.this_cpu().chaotic_good_thread_hops_per_read_data.Increment(value);
+  }
 
  private:
   struct Data {
@@ -463,6 +527,14 @@ class GlobalStatsCollector {
     HistogramCollector_100000_20 work_serializer_work_time_ms;
     HistogramCollector_100000_20 work_serializer_work_time_per_item_ms;
     HistogramCollector_10000_20 work_serializer_items_per_run;
+    HistogramCollector_100_20 chaotic_good_sendmsgs_per_write_control;
+    HistogramCollector_100_20 chaotic_good_recvmsgs_per_read_control;
+    HistogramCollector_100_20 chaotic_good_sendmsgs_per_write_data;
+    HistogramCollector_100_20 chaotic_good_recvmsgs_per_read_data;
+    HistogramCollector_100_20 chaotic_good_thread_hops_per_write_control;
+    HistogramCollector_100_20 chaotic_good_thread_hops_per_read_control;
+    HistogramCollector_100_20 chaotic_good_thread_hops_per_write_data;
+    HistogramCollector_100_20 chaotic_good_thread_hops_per_read_data;
   };
   PerCpu<Data> data_{PerCpuOptions().SetCpusPerShard(4).SetMaxShards(32)};
 };
