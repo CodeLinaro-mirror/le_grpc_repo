@@ -25,6 +25,8 @@
 
 #include <algorithm>
 
+#include "absl/log/log.h"  // IWYU pragma: keep
+
 #include <grpc/support/log.h>
 #include <grpc/support/time.h>
 
@@ -72,7 +74,7 @@ static bool is_fake_clock() {
 }
 
 void gpr_precise_clock_init(void) {
-  gpr_log(GPR_DEBUG, "Calibrating timers");
+  VLOG(2) << "Calibrating timers";
 
 #if GPR_LINUX
   if (read_freq_from_kernel(&cycles_per_second)) {

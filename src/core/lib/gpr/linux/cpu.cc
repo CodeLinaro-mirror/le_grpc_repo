@@ -29,6 +29,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "absl/log/log.h"
+
 #include <grpc/support/cpu.h>
 #include <grpc/support/log.h>
 #include <grpc/support/sync.h>
@@ -51,7 +53,7 @@ static void init_num_cpus() {
   // determined
   ncpus = static_cast<int>(sysconf(_SC_NPROCESSORS_CONF));
   if (ncpus < 1) {
-    gpr_log(GPR_ERROR, "Cannot determine number of CPUs: assuming 1");
+    LOG(ERROR) << "Cannot determine number of CPUs: assuming 1";
     ncpus = 1;
   }
 }
@@ -77,7 +79,7 @@ unsigned gpr_cpu_current_cpu(void) {
     return 0;
   }
   if (static_cast<unsigned>(cpu) >= gpr_cpu_num_cores()) {
-    gpr_log(GPR_DEBUG, "Cannot handle hot-plugged CPUs");
+    VLOG(2) << "Cannot handle hot-plugged CPUs";
     return 0;
   }
   return static_cast<unsigned>(cpu);
