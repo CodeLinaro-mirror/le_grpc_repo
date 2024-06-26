@@ -203,3 +203,8 @@
   expiry: 2024/06/30
   owner: ysseung@google.com
   test_tags: ["core_end2end_test", "cpp_end2end_test", "xds_end2end_test", "lb_unit_test"]
+- name: call_tracer_in_transport
+  description: Transport directly passes byte counts to CallTracer.
+  expiry: 2024/09/30
+  owner: roth@google.com
+  test_tags: []
