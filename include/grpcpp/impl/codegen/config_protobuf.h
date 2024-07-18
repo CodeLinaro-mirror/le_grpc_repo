@@ -113,6 +113,7 @@ namespace io {
 typedef GRPC_CUSTOM_ZEROCOPYOUTPUTSTREAM ZeroCopyOutputStream;
 typedef GRPC_CUSTOM_ZEROCOPYINPUTSTREAM ZeroCopyInputStream;
 typedef GRPC_CUSTOM_CODEDINPUTSTREAM CodedInputStream;
+typedef GRPC_CUSTOM_CODEDOUTPUTSTREAM CodedOutputStream;
 }  // namespace io
 
 }  // namespace protobuf
