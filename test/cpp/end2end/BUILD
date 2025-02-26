@@ -333,6 +333,7 @@ grpc_cc_test(
     # iOS. Figure out why.
     tags = [
         "cpp_end2end_test",
+        "grpc:no-internal-poller",
         "no_test_ios",
     ],
     deps = [
@@ -428,7 +429,10 @@ grpc_cc_test(
     external_deps = [
         "gtest",
     ],
-    tags = ["cpp_end2end_test"],
+    tags = [
+        "cpp_end2end_test",
+        "grpc:no-internal-poller",
+    ],
     deps = [
         ":test_health_check_service_impl",
         ":test_service_impl",
@@ -537,6 +541,7 @@ grpc_cc_test(
     tags = [
         "cpp_end2end_test",
         "cpp_lb_end2end_test",
+        "grpc:no-internal-poller",
         "no_windows",
     ],  # TODO(jtattermusch): fix test on windows
     deps = [
@@ -655,7 +660,10 @@ grpc_cc_test(
     external_deps = [
         "gtest",
     ],
-    tags = ["cpp_end2end_test"],
+    tags = [
+        "cpp_end2end_test",
+        "grpc:no-internal-poller",
+    ],
     deps = [
         ":test_service_impl",
         "//:gpr",

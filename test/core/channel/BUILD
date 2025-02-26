@@ -73,6 +73,9 @@ grpc_cc_test(
         "absl/log:check",
         "gtest",
     ],
+    tags = [
+        "grpc:no-internal-poller",
+    ],
     uses_event_engine = False,
     uses_polling = False,
     deps = [
