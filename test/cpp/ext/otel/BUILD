@@ -56,7 +56,7 @@ grpc_cc_test(
         "otel/api",
         "otel/sdk/src/metrics",
     ],
-    tags = [],
+    tags = ["grpc:broken-internally"],
     deps = [
         ":otel_test_library",
         "//:grpc++",

@@ -39,7 +39,10 @@ grpc_cc_test(
         "gtest",
         "opencensus-stats-test",
     ],
-    tags = ["no_windows"],
+    tags = [
+        "grpc:broken-internally",
+        "no_windows",
+    ],
     deps = [
         "//:gpr",
         "//:grpc",
