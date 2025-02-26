@@ -32,6 +32,7 @@ grpc_cc_test(
         "otel/sdk/src/metrics",
     ],
     tags = [
+        "grpc:broken-internally",
     ],
     deps = [
         "//:grpc++",
@@ -54,6 +55,7 @@ grpc_cc_test(
         "otel/sdk/src/metrics",
     ],
     tags = [
+        "grpc:broken-internally",
     ],
     deps = [
         "//:grpc++",

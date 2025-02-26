@@ -67,7 +67,10 @@ grpc_cc_test(
         "absl/log:log",
         "gtest",
     ],
-    tags = ["no_windows"],
+    tags = [
+        "grpc:fails-internally",
+        "no_windows",
+    ],
     deps = [
         ":httpcli_test_util",
         "//:gpr",
@@ -96,7 +99,10 @@ grpc_cc_test(
         "absl/log:log",
         "gtest",
     ],
-    tags = ["no_windows"],
+    tags = [
+        "grpc:fails-internally",
+        "no_windows",
+    ],
     deps = [
         ":httpcli_test_util",
         "//:gpr",

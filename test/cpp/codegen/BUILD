@@ -53,6 +53,7 @@ grpc_cc_test(
         "gtest",
         "protobuf",
     ],
+    tags = ["grpc:fails-internally"],
     uses_event_engine = False,
     uses_polling = False,
     deps = [
@@ -69,6 +70,7 @@ grpc_cc_binary(
         "absl/flags:flag",
         "gtest",
     ],
+    tags = ["grpc:fails-internally"],
     deps = [
         "//:grpc++",
         "//test/core/test_util:grpc_test_util",
