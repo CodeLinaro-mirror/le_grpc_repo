@@ -203,6 +203,7 @@ grpc_cc_test(
         "gtest",
     ],
     tags = [
+        "grpc:internal-test-filter:-GrpcToolTest.CallCommandWithBadMetadata",
         "no_mac",
         "no_test_ios",
         "no_windows",
@@ -305,7 +306,10 @@ grpc_cc_test(
     external_deps = [
         "gtest",
     ],
-    tags = ["no_test_ios"],
+    tags = [
+        "grpc:fails-internally",
+        "no_test_ios",
+    ],
     deps = [
         "//:grpc++_error_details",
         "//src/proto/grpc/testing:echo_messages_cc_proto",
@@ -371,6 +375,7 @@ grpc_cc_test(
     ],
     flaky = True,
     tags = [
+        "grpc:broken-internally",
         "no_mac",  # cmake does not build channelz_sampler in Basic Tests C/C++ MacOS test
         "no_test_android",  # android_cc_test doesn't work with data dependency.
         "no_test_ios",

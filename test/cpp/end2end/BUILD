@@ -166,6 +166,7 @@ grpc_cc_test(
         "gtest",
     ],
     tags = [
+        "grpc:fails-internally",
         "no_test_android",  # android_cc_test doesn't work with data dependency.
         "no_test_ios",
         "no_windows",
@@ -333,6 +334,7 @@ grpc_cc_test(
     # iOS. Figure out why.
     tags = [
         "cpp_end2end_test",
+        "grpc:no-internal-poller",
         "no_test_ios",
     ],
     deps = [
@@ -428,7 +430,10 @@ grpc_cc_test(
     external_deps = [
         "gtest",
     ],
-    tags = ["cpp_end2end_test"],
+    tags = [
+        "cpp_end2end_test",
+        "grpc:no-internal-poller",
+    ],
     deps = [
         ":test_health_check_service_impl",
         ":test_service_impl",
@@ -537,6 +542,7 @@ grpc_cc_test(
     tags = [
         "cpp_end2end_test",
         "cpp_lb_end2end_test",
+        "grpc:no-internal-poller",
         "no_windows",
     ],  # TODO(jtattermusch): fix test on windows
     deps = [
@@ -655,7 +661,10 @@ grpc_cc_test(
     external_deps = [
         "gtest",
     ],
-    tags = ["cpp_end2end_test"],
+    tags = [
+        "cpp_end2end_test",
+        "grpc:no-internal-poller",
+    ],
     deps = [
         ":test_service_impl",
         "//:gpr",
@@ -702,6 +711,7 @@ grpc_cc_test(
         "gtest",
     ],
     tags = [
+        "grpc:fails-internally",
         "no_test_android",  # android_cc_test doesn't work with data dependency.
         "no_test_ios",
         "no_windows",
@@ -727,6 +737,9 @@ grpc_cc_binary(
         "absl/log:check",
         "gtest",
     ],
+    tags = [
+        "grpc:fails-internally",
+    ],
     deps = [
         "//:gpr",
         "//:grpc",
@@ -746,7 +759,10 @@ grpc_cc_test(
     external_deps = [
         "gtest",
     ],
-    tags = ["cpp_end2end_test"],
+    tags = [
+        "cpp_end2end_test",
+        "grpc:fails-internally",
+    ],
     deps = [
         ":interceptors_util",
         ":test_service_impl",
@@ -768,6 +784,7 @@ grpc_cc_test(
     ],
     tags = [
         "cpp_end2end_test",
+        "grpc:broken-internally",
         "no_test_ios",
         "no_windows",
     ],
@@ -791,6 +808,7 @@ grpc_cc_test(
         "manual",
         "exclusive",
         "no_test_ios",
+        "grpc:fails-internally",
     ],
     deps = [
         ":test_service_impl",
@@ -885,6 +903,7 @@ grpc_cc_test(
         "exclusive",
         "no_test_android",
         "no_test_ios",
+        "grpc:fails-internally",
     ],
     deps = [
         ":test_service_impl",
@@ -906,7 +925,10 @@ grpc_cc_test(
         "absl/log:check",
         "gtest",
     ],
-    tags = ["cpp_end2end_test"],
+    tags = [
+        "cpp_end2end_test",
+        "grpc:broken-internally",
+    ],
     deps = [
         ":test_service_impl",
         "//:gpr",

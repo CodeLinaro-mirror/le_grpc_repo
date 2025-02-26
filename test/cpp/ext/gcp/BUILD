@@ -26,6 +26,7 @@ grpc_cc_test(
     external_deps = [
         "gtest",
     ],
+    tags = ["grpc:broken-internally"],
     uses_polling = False,
     deps = [
         "//:grpcpp_gcp_observability",
@@ -58,6 +59,7 @@ grpc_cc_test(
     external_deps = [
         "gtest",
     ],
+    tags = ["grpc:broken-internally"],
     uses_polling = False,
     deps = [
         "//src/cpp/ext/gcp:observability_logging_sink",

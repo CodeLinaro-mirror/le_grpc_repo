@@ -113,7 +113,10 @@ grpc_cc_test(
         "gtest",
     ],
     shard_count = 5,
-    tags = ["no_windows"],
+    tags = [
+        "grpc:fails-internally",
+        "no_windows",
+    ],
     deps = [
         ":transport_security_test_lib",
         "//:gpr",
