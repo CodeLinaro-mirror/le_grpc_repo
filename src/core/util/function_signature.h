@@ -42,23 +42,29 @@ namespace grpc_core {
 // for exporting debug/trace information.
 template <typename T>
 static constexpr inline absl::string_view TypeName() {
+#if ABSL_USES_STD_STRING_VIEW
+  // absl::string_view doesn't have the constexpr find methods we need
+  // here.
 #if defined(__clang__)
-  constexpr absl::string_view kPrefix{"[T = "};
-  constexpr absl::string_view kSuffix{"]"};
+  constexpr std::string_view kPrefix{"[T = "};
+  constexpr std::string_view kSuffix{"]"};
 #elif defined(__GNUC__)
-  constexpr absl::string_view kPrefix{"[with T = "};
-  constexpr absl::string_view kSuffix{";"};
+  constexpr std::string_view kPrefix{"[with T = "};
+  constexpr std::string_view kSuffix{";"};
 #elif defined(_MSC_VER)
-  constexpr absl::string_view kPrefix{"TypeName<"};
-  constexpr absl::string_view kSuffix{">(void)"};
+  constexpr std::string_view kPrefix{"TypeName<"};
+  constexpr std::string_view kSuffix{">(void)"};
 #else
   return "unknown";
 #endif
-  constexpr absl::string_view kFunction{GRPC_FUNCTION_SIGNATURE};
+  constexpr std::string_view kFunction{GRPC_FUNCTION_SIGNATURE};
   constexpr size_t kStart = kFunction.find(kPrefix) + kPrefix.size();
   constexpr size_t kEnd = kFunction.rfind(kSuffix);
   static_assert(kStart < kEnd);
   return kFunction.substr(kStart, (kEnd - kStart));
+#else  // !ABSL_USES_STD_STRING_VIEW
+  return "unknown";
+#endif
 }
 
 }  // namespace grpc_core
