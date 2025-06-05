@@ -246,7 +246,6 @@ using WriteEvent =
     ::grpc_event_engine::experimental::EventEngine::Endpoint::WriteEvent;
 
 grpc_core::WriteTimestampsCallback g_write_timestamps_callback = nullptr;
-grpc_core::CopyContextFn g_get_copied_context_fn = nullptr;
 }  // namespace
 
 namespace grpc_core {
@@ -295,15 +294,9 @@ void GrpcHttp2SetWriteTimestampsCallback(WriteTimestampsCallback fn) {
   g_write_timestamps_callback = fn;
 }
 
-void GrpcHttp2SetCopyContextFn(CopyContextFn fn) {
-  g_get_copied_context_fn = fn;
-}
-
 WriteTimestampsCallback GrpcHttp2GetWriteTimestampsCallback() {
   return g_write_timestamps_callback;
 }
-
-CopyContextFn GrpcHttp2GetCopyContextFn() { return g_get_copied_context_fn; }
 
 // For each entry in the passed ContextList, it executes the function set using
 // GrpcHttp2SetWriteTimestampsCallback method with each context in the list
