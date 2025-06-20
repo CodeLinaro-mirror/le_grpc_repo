@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef GRPC_TEST_CORE_TEST_UTIL_POSTMORTEM_EMIT_H
-#define GRPC_TEST_CORE_TEST_UTIL_POSTMORTEM_EMIT_H
+#ifndef GRPC_SRC_CORE_CHANNELZ_ZVIZ_ENTITY_H
+#define GRPC_SRC_CORE_CHANNELZ_ZVIZ_ENTITY_H
 
-namespace grpc_core {
+#include "src/core/channelz/zviz/environment.h"
+#include "src/core/channelz/zviz/layout.h"
+#include "src/proto/grpc/channelz/v2/channelz.pb.h"
 
-// Emit useful post mortem analysis from whatever in-process data we have.
-void PostMortemEmit();
+namespace grpc_zviz {
 
-// Does all the work of PostMortemEmit, but doesn't emit anything.
-// This is useful for verifying that PostMortemEmit *would* succeed...
-// which means especially that channelz is working.
-void SilentPostMortemEmit();
+void Format(Environment& env, const grpc::channelz::v2::Entity& entity,
+            layout::Element& element);
 
-}  // namespace grpc_core
+}  // namespace grpc_zviz
 
-#endif  // GRPC_TEST_CORE_TEST_UTIL_POSTMORTEM_EMIT_H
+#endif  // GRPC_SRC_CORE_CHANNELZ_ZVIZ_ENTITY_H
