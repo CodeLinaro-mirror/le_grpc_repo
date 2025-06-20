@@ -754,6 +754,7 @@ grpc_cc_library(
     deps = [
         "activity",
         "arena",
+        "channelz_property_list",
         "check_class_size",
         "construct_destruct",
         "context",
@@ -10098,11 +10099,16 @@ grpc_cc_library(
         "absl/strings",
         "absl/status",
         "absl/container:flat_hash_map",
+        "@com_google_protobuf//upb/mem",
     ],
     deps = [
         "json",
+        "match",
         "time",
+        "upb_utils",
+        "//:channelz_property_list_upb",
         "//:gpr",
+        "//:protobuf_any_upb",
     ],
 )
 
@@ -10254,6 +10260,81 @@ grpc_cc_library(
         "zviz_layout",
         "//src/proto/grpc/channelz/v2:channelz_cc_proto",
         "//src/proto/grpc/channelz/v2:property_list_cc_proto",
+    ],
+)
+
+grpc_cc_library(
+    name = "zviz_trace",
+    srcs = [
+        "channelz/zviz/trace.cc",
+    ],
+    hdrs = ["channelz/zviz/trace.h"],
+    external_deps = [
+        "absl/container:flat_hash_map",
+        "absl/strings",
+        "absl/types:span",
+    ],
+    deps = [
+        "zviz_data",
+        "zviz_environment",
+        "zviz_layout",
+        "//src/proto/grpc/channelz/v2:channelz_cc_proto",
+    ],
+)
+
+grpc_cc_library(
+    name = "zviz_entity",
+    srcs = [
+        "channelz/zviz/entity.cc",
+    ],
+    hdrs = ["channelz/zviz/entity.h"],
+    external_deps = [
+        "absl/container:flat_hash_map",
+        "absl/strings",
+        "absl/types:span",
+    ],
+    deps = [
+        "zviz_data",
+        "zviz_environment",
+        "zviz_layout",
+        "zviz_strings",
+        "zviz_trace",
+        "//src/proto/grpc/channelz/v2:channelz_cc_proto",
+    ],
+)
+
+grpc_cc_library(
+    name = "zviz_html",
+    srcs = [
+        "channelz/zviz/html.cc",
+    ],
+    hdrs = ["channelz/zviz/html.h"],
+    external_deps = [
+        "absl/container:flat_hash_map",
+        "absl/strings",
+        "absl/strings:string_view",
+        "absl/types:span",
+        "absl/functional:function_ref",
+    ],
+)
+
+grpc_cc_library(
+    name = "zviz_layout_html",
+    srcs = [
+        "channelz/zviz/layout_html.cc",
+    ],
+    hdrs = ["channelz/zviz/layout_html.h"],
+    external_deps = [
+        "absl/container:flat_hash_map",
+        "absl/strings",
+        "absl/strings:string_view",
+        "absl/types:span",
+        "absl/functional:function_ref",
+    ],
+    deps = [
+        "zviz_environment",
+        "zviz_html",
+        "zviz_layout",
     ],
 )
 
