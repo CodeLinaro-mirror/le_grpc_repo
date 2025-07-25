@@ -81,12 +81,16 @@ grpc_channel_credentials* grpc_channel_credentials_from_arg(
 grpc_channel_credentials* grpc_channel_credentials_find_in_args(
     const grpc_channel_args* args) {
   size_t i;
-  if (args == nullptr) return nullptr;
+  if (args == nullptr) {
+    LOG(ERROR) << "Channel creds not found in args. args is null";
+    return nullptr;
+  }
   for (i = 0; i < args->num_args; i++) {
     grpc_channel_credentials* credentials =
         grpc_channel_credentials_from_arg(&args->args[i]);
     if (credentials != nullptr) return credentials;
   }
+  LOG(ERROR) << "Channel creds not found in args.";
   return nullptr;
 }
 
@@ -148,11 +152,15 @@ grpc_server_credentials* grpc_server_credentials_from_arg(const grpc_arg* arg) {
 grpc_server_credentials* grpc_find_server_credentials_in_args(
     const grpc_channel_args* args) {
   size_t i;
-  if (args == nullptr) return nullptr;
+  if (args == nullptr) {
+    LOG(ERROR) << "Server creds not found in args. args is null";
+    return nullptr;
+  }
   for (i = 0; i < args->num_args; i++) {
     grpc_server_credentials* p =
         grpc_server_credentials_from_arg(&args->args[i]);
     if (p != nullptr) return p;
   }
+  LOG(ERROR) << "Server creds not found in args.";
   return nullptr;
 }
