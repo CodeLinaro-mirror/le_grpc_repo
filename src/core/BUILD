@@ -1720,6 +1720,7 @@ grpc_cc_library(
         "periodic_update",
         "poll",
         "race",
+        "resource_quota_telemetry",
         "seq",
         "slice_refcount",
         "sync",
@@ -1813,6 +1814,16 @@ grpc_cc_library(
 )
 
 grpc_cc_library(
+    name = "resource_quota_telemetry",
+    hdrs = [
+        "lib/resource_quota/telemetry.h",
+    ],
+    deps = [
+        "instrument",
+    ],
+)
+
+grpc_cc_library(
     name = "resource_quota",
     srcs = [
         "lib/resource_quota/resource_quota.cc",
@@ -1828,6 +1839,7 @@ grpc_cc_library(
         "memory_quota",
         "no_destruct",
         "ref_counted",
+        "resource_quota_telemetry",
         "single_set_ptr",
         "thread_quota",
         "useful",
@@ -10184,6 +10196,52 @@ grpc_cc_library(
         "time",
         "//:call_tracer",
         "//:gpr",
+    ],
+)
+
+grpc_cc_library(
+    name = "instrument",
+    srcs = [
+        "telemetry/instrument.cc",
+    ],
+    hdrs = [
+        "telemetry/instrument.h",
+    ],
+    external_deps = [
+        "absl/base:core_headers",
+        "absl/functional:any_invocable",
+        "absl/functional:function_ref",
+        "absl/log:check",
+        "absl/log",
+        "absl/strings",
+        "absl/types:span",
+        "absl/container:flat_hash_set",
+        "absl/container:flat_hash_map",
+        "absl/container:node_hash_map",
+        "absl/hash",
+    ],
+    deps = [
+        "avl",
+        "histogram",
+        "match",
+        "per_cpu",
+        "ref_counted",
+        "sync",
+        "//:gpr",
+        "//:ref_counted_ptr",
+    ],
+)
+
+grpc_cc_library(
+    name = "histogram",
+    hdrs = [
+        "telemetry/histogram.h",
+    ],
+    external_deps = [
+        "absl/log:check",
+        "absl/log",
+        "absl/strings",
+        "absl/types:span",
     ],
 )
 
