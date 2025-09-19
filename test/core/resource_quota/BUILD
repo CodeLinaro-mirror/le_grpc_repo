@@ -65,6 +65,7 @@ grpc_cc_test(
     uses_polling = False,
     deps = [
         "call_checker",
+        "//:config_vars",
         "//:exec_ctx",
         "//:gpr",
         "//src/core:memory_quota",
