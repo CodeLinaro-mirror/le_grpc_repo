@@ -285,6 +285,7 @@ class Http2ClientTransport final : public ClientTransport,
   PromiseEndpoint endpoint_;
   Http2SettingsManager settings_;
   SettingsTimeoutManager transport_settings_;
+  PendingIncomingSettings pending_incoming_settings_;
 
   Http2FrameHeader current_frame_header_;
   // Returns the number of active streams. A stream is removed from the `active`

@@ -473,24 +473,24 @@ Http2Status Http2ClientTransport::ProcessHttp2SettingsFrame(
         });
   }
 
-  // TODO(tjagtap) : [PH2][P2] Decide later if we want this only for AckLastSend
-  // or does any other operation also need this lock.
-  MutexLock lock(&transport_mutex_);
   if (!frame.ack) {
-    // Check if the received settings have legal values
     Http2Status status = ValidateSettingsValues(frame.settings);
     if (!status.IsOk()) {
       return status;
     }
-    // TODO(tjagtap) : [PH2][P1]
-    // Apply the new settings
-    // Quickly send the ACK to the peer once the settings are applied
-    // When the peer changes MAX_CONCURRENT_STREAMS, notify the state watcher.
+    pending_incoming_settings_.AddSettingsToPendingList(
+        std::move(frame.settings));
+    settings_.OnSettingsReceived();
+    SpawnGuardedTransportParty("SettingsAck", TriggerWriteCycle());
   } else {
     // Process the SETTINGS ACK Frame
     if (settings_.AckLastSend()) {
       // Stop the settings timeout promise.
       transport_settings_.OnSettingsAckReceived();
+      // parser_.hpack_table()->SetMaxBytes(settings_.acked().header_table_size());
+      ActOnFlowControlAction(flow_control_.SetAckedInitialWindow(
+                                 settings_.acked().initial_window_size()),
+                             /*stream=*/nullptr);
     } else {
       // TODO(tjagtap) [PH2][P4] : The RFC does not say anything about what
       // should happen if we receive an unsolicited SETTINGS ACK. Decide if we
@@ -981,6 +981,8 @@ auto Http2ClientTransport::WriteControlFrames() {
 
   goaway_manager_.MaybeGetSerializedGoawayFrame(output_buf);
   if (!goaway_manager_.IsImmediateGoAway()) {
+      settings_.ApplyIncomingSettings(
+          pending_incoming_settings_.TakePendingSettings());
     MaybeGetSettingsAndSettingsAckFrames(flow_control_, settings_,
                                          transport_settings_, output_buf);
     ping_manager_.MaybeGetSerializedPingFrames(output_buf,
