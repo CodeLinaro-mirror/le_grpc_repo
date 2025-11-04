@@ -27,6 +27,7 @@
 #include "src/core/channelz/channelz.h"
 #include "src/core/ext/transport/chttp2/transport/flow_control.h"
 #include "src/core/ext/transport/chttp2/transport/frame.h"
+#include "src/core/ext/transport/chttp2/transport/hpack_parser.h"
 #include "src/core/ext/transport/chttp2/transport/http2_settings.h"
 #include "src/core/ext/transport/chttp2/transport/http2_status.h"
 #include "src/core/ext/transport/chttp2/transport/stream.h"
@@ -95,6 +96,14 @@ ProcessIncomingDataFrameFlowControl(Http2FrameHeader& frame,
 bool ProcessIncomingWindowUpdateFrameFlowControl(
     const Http2WindowUpdateFrame& frame,
     chttp2::TransportFlowControl& flow_control, RefCountedPtr<Stream> stream);
+
+///////////////////////////////////////////////////////////////////////////////
+// HPACK helpers
+
+Http2Status SkipParser(HPackParser& parser, SliceBuffer&& buffer,
+                       HeaderAssembler::ParseHeaderArgs args,
+                       RefCountedPtr<Stream> stream,
+                       Http2Status&& original_status);
 
 }  // namespace http2
 }  // namespace grpc_core

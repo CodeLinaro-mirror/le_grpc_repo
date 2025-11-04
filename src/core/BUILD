@@ -8277,6 +8277,7 @@ grpc_cc_library(
     ],
     external_deps = [
         "absl/log",
+        "absl/strings",
     ],
     deps = [
         "grpc_check",
@@ -8563,6 +8564,7 @@ grpc_cc_library(
         "chttp2_flow_control",
         "grpc_check",
         "grpc_promise_endpoint",
+        "header_assembler",
         "http2_settings",
         "http2_status",
         "loop",
