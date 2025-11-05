@@ -54,6 +54,14 @@ std::optional<Http2SettingsFrame> Http2SettingsManager::MaybeSendUpdate() {
   return frame;
 }
 
+std::optional<Http2SettingsFrame> Http2SettingsManager::MaybeSendAck() {
+  if (should_send_ack_) {
+    should_send_ack_ = false;
+    return Http2SettingsFrame{true, {}};
+  }
+  return std::nullopt;
+}
+
 bool Http2SettingsManager::AckLastSend() {
   if (update_state_ != UpdateState::kSending) return false;
   update_state_ = UpdateState::kIdle;

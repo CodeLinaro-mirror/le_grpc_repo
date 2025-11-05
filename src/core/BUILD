@@ -8551,6 +8551,7 @@ grpc_cc_library(
         "ext/transport/chttp2/transport/http2_transport.h",
     ],
     external_deps = [
+        "absl/types:span",
         "absl/log",
         "absl/status",
         "absl/status:statusor",
@@ -8564,6 +8565,7 @@ grpc_cc_library(
         "grpc_check",
         "grpc_promise_endpoint",
         "http2_settings",
+        "http2_settings_manager",
         "http2_status",
         "loop",
         "map",

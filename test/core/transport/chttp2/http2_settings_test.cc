@@ -644,6 +644,32 @@ TEST(Http2SettingsManagerTest,
             Http2ErrorCode::kConnectError);
 }
 
+TEST(Http2SettingsManagerTest, NoAckNeededInitially) {
+  Http2SettingsManager settings_manager;
+  EXPECT_EQ(settings_manager.MaybeSendAck(), std::nullopt);
+}
+
+TEST(Http2SettingsManagerTest, AckNeededAfterEmptySettings) {
+  Http2SettingsManager settings_manager;
+  EXPECT_EQ(settings_manager.ApplyIncomingSettings({}),
+            Http2ErrorCode::kNoError);
+  EXPECT_THAT(settings_manager.MaybeSendAck(),
+              ::testing::Optional(Http2SettingsFrame{true, {}}));
+  EXPECT_EQ(settings_manager.MaybeSendAck(), std::nullopt);
+}
+
+TEST(Http2SettingsManagerTest, AckNeededAfterValidSettings) {
+  Http2SettingsManager settings_manager;
+  std::vector<Http2SettingsFrame::Setting> settings = {
+      {Http2Settings::kHeaderTableSizeWireId, 1000},
+      {Http2Settings::kMaxConcurrentStreamsWireId, 200}};
+  EXPECT_EQ(settings_manager.ApplyIncomingSettings(settings),
+            Http2ErrorCode::kNoError);
+  EXPECT_THAT(settings_manager.MaybeSendAck(),
+              ::testing::Optional(Http2SettingsFrame{true, {}}));
+  EXPECT_EQ(settings_manager.MaybeSendAck(), std::nullopt);
+}
+
 }  // namespace grpc_core
 
 int main(int argc, char** argv) {

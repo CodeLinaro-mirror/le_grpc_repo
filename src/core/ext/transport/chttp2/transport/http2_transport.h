@@ -20,23 +20,16 @@
 #define GRPC_SRC_CORE_EXT_TRANSPORT_CHTTP2_TRANSPORT_HTTP2_TRANSPORT_H
 
 #include <cstdint>
-#include <utility>
 
-#include "src/core/call/call_spine.h"
-#include "src/core/call/metadata_info.h"
 #include "src/core/channelz/channelz.h"
 #include "src/core/ext/transport/chttp2/transport/flow_control.h"
 #include "src/core/ext/transport/chttp2/transport/frame.h"
 #include "src/core/ext/transport/chttp2/transport/http2_settings.h"
+#include "src/core/ext/transport/chttp2/transport/http2_settings_manager.h"
 #include "src/core/ext/transport/chttp2/transport/http2_status.h"
 #include "src/core/ext/transport/chttp2/transport/stream.h"
-#include "src/core/lib/event_engine/tcp_socket_utils.h"
-#include "src/core/lib/promise/mpsc.h"
-#include "src/core/lib/promise/party.h"
-#include "src/core/lib/transport/promise_endpoint.h"
-#include "src/core/lib/transport/transport.h"
 #include "src/core/util/ref_counted_ptr.h"
-#include "src/core/util/sync.h"
+#include "absl/log/log.h"
 
 namespace grpc_core {
 namespace http2 {
@@ -70,6 +63,10 @@ void ReadSettingsFromChannelArgs(const ChannelArgs& channel_args,
                                  Http2Settings& local_settings,
                                  chttp2::TransportFlowControl& flow_control,
                                  const bool is_client);
+
+bool MaybeGetSettingsAndSettingsAckFrames(
+    chttp2::TransportFlowControl& flow_control, Http2SettingsManager& settings,
+    SliceBuffer& output_buf);
 
 ///////////////////////////////////////////////////////////////////////////////
 // ChannelZ helpers
