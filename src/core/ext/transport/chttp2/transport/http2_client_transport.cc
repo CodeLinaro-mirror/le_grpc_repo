@@ -449,10 +449,7 @@ Http2Status Http2ClientTransport::ProcessHttp2SettingsFrame(
   } else {
     // Process the SETTINGS ACK Frame
     if (settings_.AckLastSend()) {
-      // TODO(tjagtap) [PH2][P1][Settings] Fix this bug ASAP.
-      // Causing DCHECKS to fail because of incomplete plumbing.
-      // This is a bug.
-      // transport_settings_.OnSettingsAckReceived();
+      transport_settings_.OnSettingsAckReceived();
     } else {
       // TODO(tjagtap) [PH2][P4] : The RFC does not say anything about what
       // should happen if we receive an unsolicited SETTINGS ACK. Decide if we
@@ -920,12 +917,13 @@ auto Http2ClientTransport::WriteControlFrames() {
   if (is_first_write_) {
     GRPC_HTTP2_CLIENT_DLOG << "Http2ClientTransport WriteControlFrames "
                               "GRPC_CHTTP2_CLIENT_CONNECT_STRING";
-    output_buf.Append(Slice(
-        grpc_slice_from_copied_string(GRPC_CHTTP2_CLIENT_CONNECT_STRING)));
+    output_buf.Append(
+        Slice::FromCopiedString(GRPC_CHTTP2_CLIENT_CONNECT_STRING));
     is_first_write_ = false;
     //  SETTINGS MUST be the first frame to be written onto a connection as per
     //  RFC9113.
-    MaybeGetSettingsFrame(output_buf);
+    MaybeGetSettingsAndSettingsAckFrames(flow_control_, settings_,
+                                         transport_settings_, output_buf);
   }
 
   // Order of Control Frames is important.
@@ -938,7 +936,8 @@ auto Http2ClientTransport::WriteControlFrames() {
 
   goaway_manager_.MaybeGetSerializedGoawayFrame(output_buf);
   if (!goaway_manager_.IsImmediateGoAway()) {
-    MaybeGetSettingsFrame(output_buf);
+    MaybeGetSettingsAndSettingsAckFrames(flow_control_, settings_,
+                                         transport_settings_, output_buf);
     ping_manager_.MaybeGetSerializedPingFrames(output_buf,
                                                NextAllowedPingInterval());
     MaybeGetWindowUpdateFrames(output_buf);
@@ -971,6 +970,8 @@ void Http2ClientTransport::NotifyControlFramesWriteDone() {
   }
   ping_manager_.NotifyPingSent(ping_timeout_);
   goaway_manager_.NotifyGoawaySent();
+  EnforceLatestIncomingSettings();
+  MaybeSpawnWaitForSettingsTimeout();
 }
 
 auto Http2ClientTransport::SerializeAndWrite(std::vector<Http2Frame>&& frames) {
@@ -1235,6 +1236,45 @@ void Http2ClientTransport::AddToStreamList(RefCountedPtr<Stream> stream) {
   if (should_wake_periodic_updates) {
     // Release the lock before you wake up another promise on the party.
     WakeupPeriodicUpdatePromise();
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Settings and Window Update Management
+
+void Http2ClientTransport::OnSettingsAckedByPeer() {
+  settings_.SetPreviousSettingsPromiseResolved(true);
+}
+
+void Http2ClientTransport::EnforceLatestIncomingSettings() {
+  encoder_.SetMaxTableSize(settings_.peer().header_table_size());
+}
+
+auto Http2ClientTransport::WaitForSettingsTimeoutDone() {
+  // TODO(tjagtap) : [PH2][P1][Settings] : Handle Transport Close case.
+  // In case of transport close, we dont actually timeout. Nor can we
+  // MarkPeerSettingsResolved
+  return [self = RefAsSubclass<Http2ClientTransport>()](absl::Status status) {
+    if (!status.ok()) {
+      GRPC_UNUSED absl::Status result = self->HandleError(
+          std::nullopt, Http2Status::Http2ConnectionError(
+                            Http2ErrorCode::kProtocolError,
+                            std::string(RFC9113::kSettingsTimeout)));
+    } else {
+      self->OnSettingsAckedByPeer();
+    }
+  };
+}
+
+// TODO(tjagtap) : [PH2][P1] : Plumbing. Call this after the SETTINGS frame
+// has been written to endpoint_.
+void Http2ClientTransport::MaybeSpawnWaitForSettingsTimeout() {
+  if (transport_settings_.ShouldSpawnTimeoutWaiter()) {
+    settings_.SetPreviousSettingsPromiseResolved(false);
+    general_party_->Spawn("WaitForSettingsTimeout",
+                          transport_settings_.WaitForSettingsTimeout(),
+                          WaitForSettingsTimeoutDone());
+    transport_settings_.TimeoutWaiterSpawned();
   }
 }
 

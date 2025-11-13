@@ -66,6 +66,12 @@ class SettingsTimeoutManager {
   // frame.
   inline void OnSettingsAckReceived() { RecordReceivedAck(); }
 
+  void WillSendSettings() { should_spawn_settings_timeout_ = true; }
+  bool ShouldSpawnTimeoutWaiter() const {
+    return should_spawn_settings_timeout_;
+  }
+  void TimeoutWaiterSpawned() { should_spawn_settings_timeout_ = false; }
+
   // This returns a promise which must be spawned on transports general party.
   // This must be spawned soon after the transport sends a SETTINGS frame on the
   // endpoint.
@@ -172,6 +178,7 @@ class SettingsTimeoutManager {
   Waker waker_;
   bool did_register_waker_ = false;
   int number_of_acks_unprocessed_ = 0;
+  bool should_spawn_settings_timeout_ = false;
 };
 
 }  // namespace grpc_core
