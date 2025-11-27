@@ -8265,6 +8265,7 @@ grpc_cc_library(
         "absl/log:check",
         "absl/status",
         "absl/strings",
+        "absl/types:span",
     ],
     deps = [
         "activity",
@@ -8284,6 +8285,7 @@ grpc_cc_library(
         "time",
         "try_seq",
         "useful",
+        ":chttp2_flow_control",
         "//:chttp2_frame",
         "//:gpr_platform",
         "//:promise",
