@@ -633,7 +633,7 @@ Http2Status Http2ClientTransport::ProcessHttp2WindowUpdateFrame(
     }
   }
 
-  bool should_trigger_write =
+  const bool should_trigger_write =
       ProcessIncomingWindowUpdateFrameFlowControl(frame, flow_control_, stream);
   if (should_trigger_write) {
     SpawnGuardedTransportParty("TransportTokensAvailable", TriggerWriteCycle());
@@ -940,11 +940,9 @@ void Http2ClientTransport::ActOnFlowControlAction(
     }
   }
 
-  // TODO(tjagtap) : [PH2][P1] Plumb
-  // enable_preferred_rx_crypto_frame_advertisement with settings
   ActOnFlowControlActionSettings(
       action, settings_->mutable_local(),
-      /*enable_preferred_rx_crypto_frame_advertisement=*/true);
+      enable_preferred_rx_crypto_frame_advertisement_);
 
   if (action.AnyUpdateImmediately()) {
     // Prioritize sending flow control updates over reading data. If we
@@ -1005,7 +1003,7 @@ auto Http2ClientTransport::ProcessAndWriteControlFrames() {
          [self = RefAsSubclass<Http2ClientTransport>(),
           output_buf = std::move(output_buf)]() mutable {
            return self->endpoint_.Write(std::move(output_buf),
-                                        PromiseEndpoint::WriteArgs{});
+                                        GetWriteArgs(self->settings_->peer()));
          },
          [self = RefAsSubclass<Http2ClientTransport>(), apply_status]() {
            if (apply_status != http2::Http2ErrorCode::kNoError) {
@@ -1042,7 +1040,7 @@ auto Http2ClientTransport::SerializeAndWrite(std::vector<Http2Frame>&& frames) {
       [self = RefAsSubclass<Http2ClientTransport>(),
        output_buf = std::move(output_buf)]() mutable {
         return self->endpoint_.Write(std::move(output_buf),
-                                     PromiseEndpoint::WriteArgs{});
+                                     GetWriteArgs(self->settings_->peer()));
       },
       []() { return absl::OkStatus(); }));
 }
@@ -1492,8 +1490,7 @@ void Http2ClientTransport::CloseStream(RefCountedPtr<Stream> stream,
                 /*stream_id=*/incoming_headers_.GetStreamId(),
             },
             stream, /*original_status=*/Http2Status::Ok());
-        if (!result.IsOk() &&
-            result.GetType() == Http2Status::Http2ErrorType::kConnectionError) {
+        if (result.GetType() == Http2Status::Http2ErrorType::kConnectionError) {
           GRPC_HTTP2_CLIENT_DLOG
               << "Http2ClientTransport::CloseStream for stream id: "
               << stream->GetStreamId()

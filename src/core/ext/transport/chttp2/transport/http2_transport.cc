@@ -366,6 +366,7 @@ void MaybeAddStreamWindowUpdateFrame(RefCountedPtr<Stream> stream,
 
 // /////////////////////////////////////////////////////////////////////////////
 // Header and Continuation frame processing helpers
+
 Http2Status ParseAndDiscardHeaders(HPackParser& parser, SliceBuffer&& buffer,
                                    HeaderAssembler::ParseHeaderArgs args,
                                    const RefCountedPtr<Stream> stream,
