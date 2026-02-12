@@ -785,6 +785,7 @@ grpc_cc_test(
 
 grpc_cc_library(
     name = "http2_common_test_inputs",
+    testonly = 1,
     hdrs = [
         "http2_common_test_inputs.h",
     ],
@@ -794,9 +795,13 @@ grpc_cc_library(
         "absl/strings",
     ],
     deps = [
+        ":http2_frame_test_helper",
         "//:chttp2_frame",
         "//:gpr_platform",
+        "//:grpc",
         "//src/core:http2_status",
+        "//test/core/test_util:postmortem",
+        "//test/core/transport/util:transport_test",
     ],
 )
 
@@ -935,6 +940,7 @@ grpc_cc_test(
     ],
     uses_polling = False,
     deps = [
+        "http2_common_test_inputs",
         ":http2_frame_test_helper",
         "//:channel_arg_names",
         "//:chttp2_frame",
@@ -1303,6 +1309,7 @@ grpc_cc_library(
         "//src/core:http2_settings",
         "//src/core:http2_settings_manager",
         "//src/core:http2_status",
+        "//src/core:metadata_info",
         "//src/core:slice",
         "//src/core:slice_buffer",
     ],
