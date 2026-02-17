@@ -115,6 +115,9 @@ using grpc_event_engine::experimental::EventEngine;
 // TODO(tjagtap) : [PH2][P2] : Consider moving to common code.
 constexpr int kMpscSize = 10;
 
+//////////////////////////////////////////////////////////////////////////////
+// Transport Functions
+
 void Http2ServerTransport::SetCallDestination(
     RefCountedPtr<UnstartedCallDestination> call_destination) {
   // TODO(tjagtap) : [PH2][P2] : Implement this function.
@@ -143,6 +146,31 @@ void Http2ServerTransport::AbortWithError() {
   // TODO(tjagtap) : [PH2][P2] : Implement this function.
   GRPC_HTTP2_SERVER_DLOG << "Http2ServerTransport AbortWithError End";
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// Channelz and ZTrace
+
+//////////////////////////////////////////////////////////////////////////////
+// Watchers
+
+//////////////////////////////////////////////////////////////////////////////
+// Test Only Functions
+
+int64_t Http2ServerTransport::TestOnlyTransportFlowControlWindow() {
+  return flow_control_.remote_window();
+}
+
+int64_t Http2ServerTransport::TestOnlyGetStreamFlowControlWindow(
+    const uint32_t stream_id) {
+  RefCountedPtr<Stream> stream = LookupStream(stream_id);
+  if (stream == nullptr) {
+    return -1;
+  }
+  return stream->flow_control.remote_window_delta();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Transport Read Path
 
 Http2Status ProcessHttp2DataFrame(Http2DataFrame frame) {
   // https://www.rfc-editor.org/rfc/rfc9113.html#name-data
@@ -252,7 +280,7 @@ Http2Status ProcessHttp2SecurityFrame(Http2SecurityFrame frame) {
   return Http2Status::Ok();
 }
 
-auto Http2ServerTransport::ProcessOneFrame(Http2Frame frame) {
+auto Http2ServerTransport::ProcessOneIncomingFrame(Http2Frame frame) {
   GRPC_HTTP2_SERVER_DLOG << "Http2ServerTransport ProcessOneFrame Factory";
   return AssertResultType<Http2Status>(MatchPromise(
       std::move(frame),
@@ -330,10 +358,8 @@ auto Http2ServerTransport::ReadAndProcessOneFrame() {
             ValueOrHttp2Status<Http2Frame>::TakeStatus(std::move(frame)));
       },
       [this](GRPC_UNUSED Http2Frame frame) {
-        GRPC_HTTP2_SERVER_DLOG
-            << "Http2ServerTransport ReadAndProcessOneFrame ProcessOneFrame";
         return Map(
-            ProcessOneFrame(std::move(frame)),
+            ProcessOneIncomingFrame(std::move(frame)),
             [self = RefAsSubclass<Http2ServerTransport>()](Http2Status status) {
               if (status.IsOk()) {
                 return absl::OkStatus();
@@ -365,6 +391,9 @@ auto Http2ServerTransport::OnReadLoopEnded() {
                 status.code(), std::string(status.message())));
       };
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// Transport Write Path
 
 auto Http2ServerTransport::WriteFromQueue() {
   GRPC_HTTP2_SERVER_DLOG << "Http2ServerTransport WriteFromQueue Factory";
@@ -399,6 +428,63 @@ auto Http2ServerTransport::OnWriteLoopEnded() {
                 status.code(), std::string(status.message())));
       };
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// Spawn Helpers and Promise Helpers
+
+//////////////////////////////////////////////////////////////////////////////
+// Endpoint Helpers
+
+//////////////////////////////////////////////////////////////////////////////
+// Settings
+
+// auto WaitForSettingsTimeoutOnDone();
+
+// void MaybeSpawnWaitForSettingsTimeout();
+
+// void EnforceLatestIncomingSettings();
+
+//////////////////////////////////////////////////////////////////////////////
+// Flow Control and BDP
+
+// void ActOnFlowControlAction(...);
+
+// void MaybeGetWindowUpdateFrames(SliceBuffer& output_buf);
+
+// auto FlowControlPeriodicUpdateLoop();
+
+//////////////////////////////////////////////////////////////////////////////
+// Stream List Operations
+
+RefCountedPtr<Stream> Http2ServerTransport::LookupStream(uint32_t stream_id) {
+  MutexLock lock(&transport_mutex_);
+  auto it = stream_list_.find(stream_id);
+  if (it == stream_list_.end()) {
+    GRPC_HTTP2_SERVER_DLOG
+        << "Http2ServerTransport::LookupStream Stream not found stream_id="
+        << stream_id;
+    return nullptr;
+  }
+  return it->second;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Stream Operations
+
+//////////////////////////////////////////////////////////////////////////////
+// Ping Keepalive and Goaway
+
+//////////////////////////////////////////////////////////////////////////////
+// Error Path and Close Path
+
+//////////////////////////////////////////////////////////////////////////////
+// Misc Transport Stuff
+
+//////////////////////////////////////////////////////////////////////////////
+// Inner Classes and Structs
+
+//////////////////////////////////////////////////////////////////////////////
+// Constructor, Destructor etc.
 
 Http2ServerTransport::Http2ServerTransport(
     PromiseEndpoint endpoint, GRPC_UNUSED const ChannelArgs& channel_args,
