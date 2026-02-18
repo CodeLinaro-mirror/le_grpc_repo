@@ -156,6 +156,19 @@ void Http2ServerTransport::AbortWithError() {
 //////////////////////////////////////////////////////////////////////////////
 // Test Only Functions
 
+int64_t Http2ServerTransport::TestOnlyTransportFlowControlWindow() {
+  return flow_control_.remote_window();
+}
+
+int64_t Http2ServerTransport::TestOnlyGetStreamFlowControlWindow(
+    const uint32_t stream_id) {
+  RefCountedPtr<Stream> stream = LookupStream(stream_id);
+  if (stream == nullptr) {
+    return -1;
+  }
+  return stream->flow_control.remote_window_delta();
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // Transport Read Path
 
@@ -425,11 +438,35 @@ auto Http2ServerTransport::OnWriteLoopEnded() {
 //////////////////////////////////////////////////////////////////////////////
 // Settings
 
+// auto WaitForSettingsTimeoutOnDone();
+
+// void MaybeSpawnWaitForSettingsTimeout();
+
+// void EnforceLatestIncomingSettings();
+
 //////////////////////////////////////////////////////////////////////////////
 // Flow Control and BDP
 
+// void ActOnFlowControlAction(...);
+
+// void MaybeGetWindowUpdateFrames(SliceBuffer& output_buf);
+
+// auto FlowControlPeriodicUpdateLoop();
+
 //////////////////////////////////////////////////////////////////////////////
 // Stream List Operations
+
+RefCountedPtr<Stream> Http2ServerTransport::LookupStream(uint32_t stream_id) {
+  MutexLock lock(&transport_mutex_);
+  auto it = stream_list_.find(stream_id);
+  if (it == stream_list_.end()) {
+    GRPC_HTTP2_SERVER_DLOG
+        << "Http2ServerTransport::LookupStream Stream not found stream_id="
+        << stream_id;
+    return nullptr;
+  }
+  return it->second;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 // Stream Operations
@@ -445,6 +482,82 @@ auto Http2ServerTransport::OnWriteLoopEnded() {
 
 //////////////////////////////////////////////////////////////////////////////
 // Inner Classes and Structs
+
+std::unique_ptr<PingInterface>
+Http2ServerTransport::PingSystemInterfaceImpl::Make(
+    Http2ServerTransport* transport) {
+  return std::make_unique<PingSystemInterfaceImpl>(
+      PingSystemInterfaceImpl(transport));
+}
+
+absl::Status Http2ServerTransport::PingSystemInterfaceImpl::TriggerWrite() {
+  return transport_->TriggerWriteCycle();
+}
+
+Promise<absl::Status>
+Http2ServerTransport::PingSystemInterfaceImpl::PingTimeout() {
+  GRPC_HTTP2_CLIENT_DLOG << "Ping timeout at time: " << Timestamp::Now();
+
+  // TODO(akshitpatel) : [PH2][P2] : The error code here has been chosen
+  // based on CHTTP2's usage of GRPC_STATUS_UNAVAILABLE (which corresponds
+  // to kRefusedStream). However looking at RFC9113, definition of
+  // kRefusedStream doesn't seem to fit this case. We should revisit this
+  // and update the error code.
+  return Immediate(transport_->HandleError(
+      std::nullopt,
+      Http2Status::Http2ConnectionError(Http2ErrorCode::kRefusedStream,
+                                        GRPC_CHTTP2_PING_TIMEOUT_STR)));
+}
+
+std::unique_ptr<KeepAliveInterface>
+Http2ServerTransport::KeepAliveInterfaceImpl::Make(
+    Http2ServerTransport* transport) {
+  return std::make_unique<KeepAliveInterfaceImpl>(
+      KeepAliveInterfaceImpl(transport));
+}
+
+Promise<absl::Status>
+Http2ServerTransport::KeepAliveInterfaceImpl::SendPingAndWaitForAck() {
+  return TrySeq(
+      [transport = transport_] { return transport->TriggerWriteCycle(); },
+      [transport = transport_] { return transport->WaitForPingAck(); });
+}
+
+Promise<absl::Status>
+Http2ServerTransport::KeepAliveInterfaceImpl::OnKeepAliveTimeout() {
+  GRPC_HTTP2_CLIENT_DLOG << "Keepalive timeout triggered";
+  // TODO(akshitpatel) : [PH2][P2] : The error code here has been chosen
+  // based on CHTTP2's usage of GRPC_STATUS_UNAVAILABLE (which corresponds
+  // to kRefusedStream). However looking at RFC9113, definition of
+  // kRefusedStream doesn't seem to fit this case. We should revisit this
+  // and update the error code.
+  return Immediate(transport_->HandleError(
+      std::nullopt,
+      Http2Status::Http2ConnectionError(Http2ErrorCode::kRefusedStream,
+                                        GRPC_CHTTP2_KEEPALIVE_TIMEOUT_STR)));
+}
+
+bool Http2ServerTransport::KeepAliveInterfaceImpl::NeedToSendKeepAlivePing() {
+  bool need_to_send_ping = false;
+  {
+    MutexLock lock(&transport_->transport_mutex_);
+    need_to_send_ping = (transport_->keepalive_permit_without_calls_ ||
+                         transport_->GetActiveStreamCountLocked() > 0);
+  }
+  return need_to_send_ping;
+}
+
+std::unique_ptr<GoawayInterface>
+Http2ServerTransport::GoawayInterfaceImpl::Make(
+    Http2ServerTransport* transport) {
+  return std::make_unique<GoawayInterfaceImpl>(GoawayInterfaceImpl(transport));
+}
+
+uint32_t Http2ServerTransport::GoawayInterfaceImpl::GetLastAcceptedStreamId() {
+  LOG(DFATAL) << "GetLastAcceptedStreamId is not implemented for client "
+                 "transport.";
+  return 0;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 // Constructor, Destructor etc.
