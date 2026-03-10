@@ -10789,6 +10789,7 @@ grpc_cc_library(
         "sync",
         "time",
         "//:call_tracer",
+        "//:channel_arg_names",
         "//:gpr",
     ],
 )
