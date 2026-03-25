@@ -690,7 +690,7 @@ auto Http2ClientTransport::ReadAndProcessOneFrame() {
         if (GPR_UNLIKELY(!status.IsOk())) {
           GRPC_DCHECK(status.GetType() ==
                       Http2Status::Http2ErrorType::kConnectionError);
-          return HandleError(std::nullopt, std::move(status));
+          return HandleError(/*stream_id=*/std::nullopt, std::move(status));
         }
         read_context_.SetCurrentFrameHeader(header);
         return absl::OkStatus();
@@ -948,7 +948,7 @@ absl::Status Http2ClientTransport::PrepareControlFrames() {
   }
 
   if (apply_status != http2::Http2ErrorCode::kNoError) {
-    return HandleError(std::nullopt,
+    return HandleError(/*stream_id=*/std::nullopt,
                        Http2Status::Http2ConnectionError(
                            apply_status, "Failed to apply incoming settings"));
   }
@@ -1034,7 +1034,8 @@ absl::Status Http2ClientTransport::DequeueStreamFrames(
              "enqueue stream "
           << stream->GetStreamId() << " with status: " << status;
       // Close transport if we fail to enqueue stream.
-      return HandleError(std::nullopt, ToHttpOkOrConnError(status));
+      return HandleError(/*stream_id=*/std::nullopt,
+                         ToHttpOkOrConnError(status));
     }
   }
 
@@ -1077,11 +1078,6 @@ absl::Status Http2ClientTransport::DequeueStreamFrames(
                                          /*close_writes=*/true});
   }
 
-  // Update the write_bytes_remaining_ based on the bytes consumed
-  // in the current dequeue.
-  // Note: We do tend to overestimate the bytes consumed here. This may result
-  // in sending less data than target_write_size_.
-
   GRPC_HTTP2_CLIENT_DLOG << "Http2ClientTransport::DequeueStreamFrames "
                             "After dequeue: "
                          << write_cycle.DebugString()
@@ -1117,10 +1113,6 @@ auto Http2ClientTransport::MultiplexerLoop() {
             }
             NotifyUrgentFramesWriteDone();
             WriteCycle& write_cycle = transport_write_context_.GetWriteCycle();
-            GRPC_HTTP2_CLIENT_DLOG
-                << "Http2ClientTransport::MultiplexerLoop "
-                << "Starting to iterate over writable stream list "
-                << write_cycle.DebugString();
             // Drain all the writable streams till we have written
             // max_write_size_ bytes of data or there is no more data to send.
             // In some cases, we may write more than max_write_size_ bytes(like
@@ -1257,9 +1249,10 @@ auto Http2ClientTransport::WaitForSettingsTimeoutOnDone() {
   return [self = RefAsSubclass<Http2ClientTransport>()](absl::Status status) {
     if (!status.ok()) {
       GRPC_UNUSED absl::Status result = self->HandleError(
-          std::nullopt, Http2Status::Http2ConnectionError(
-                            Http2ErrorCode::kProtocolError,
-                            std::string(RFC9113::kSettingsTimeout)));
+          /*stream_id=*/std::nullopt,
+          Http2Status::Http2ConnectionError(
+              Http2ErrorCode::kProtocolError,
+              std::string(RFC9113::kSettingsTimeout)));
     }
   };
 }
@@ -1355,7 +1348,6 @@ void Http2ClientTransport::SpawnTransportLoops() {
   // For Client, write happens before read. So MultiplexerLoop is spawned first.
   // ReadLoop is spawned after the first write.
   // For Server, read happens before write. So ReadLoop is spawned first.
-  // MultiplexerLoop is spawned after the first read.
   SpawnGuardedTransportParty("MultiplexerLoop",
                              UntilTransportClosed(MultiplexerLoop()));
   GRPC_HTTP2_CLIENT_DLOG << "Http2ClientTransport::SpawnTransportLoops End";
@@ -1814,16 +1806,16 @@ absl::Status Http2ClientTransport::MaybeAddStreamToWritableStreamList(
         << "Http2ClientTransport::MaybeAddStreamToWritableStreamList Stream "
            "id: "
         << stream->GetStreamId() << " became writable";
-    // TODO(akshitpatel) [Perf]: Might be worth exploring if this function
-    // should take a raw stream ptr and take a ref here.
+    // TODO(akshitpatel) [PH2][P4][Perf]: Might be worth exploring if this
+    // function should take a raw stream ptr and take a ref here.
     absl::Status status =
         writable_stream_list_.Enqueue(std::move(stream), result.priority);
     if (!status.ok()) {
       return HandleError(
-          std::nullopt,
+          /*stream_id=*/std::nullopt,
           Http2Status::Http2ConnectionError(
               Http2ErrorCode::kRefusedStream,
-              "Failed to enqueue stream to writable stream list"));
+              std::string(GrpcErrors::kFailedToEnqueueStream)));
     }
   }
   return absl::OkStatus();
@@ -1958,7 +1950,7 @@ auto Http2ClientTransport::CallOutboundLoop(RefCountedPtr<Stream> stream) {
         if (GPR_UNLIKELY(!enqueue_result.ok())) {
           return enqueue_result.status();
         }
-        GRPC_HTTP2_CLIENT_DLOG << "Http2ClientTransport CallOutboundLoop "
+        GRPC_HTTP2_CLIENT_DLOG << "Http2ClientTransport::CallOutboundLoop "
                                   "Enqueued Initial Metadata";
         return MaybeAddStreamToWritableStreamList(std::move(stream),
                                                   enqueue_result.value());
@@ -1970,7 +1962,7 @@ auto Http2ClientTransport::CallOutboundLoop(RefCountedPtr<Stream> stream) {
     if (GPR_UNLIKELY(!enqueue_result.ok())) {
       return enqueue_result.status();
     }
-    GRPC_HTTP2_CLIENT_DLOG << "Http2ClientTransport CallOutboundLoop "
+    GRPC_HTTP2_CLIENT_DLOG << "Http2ClientTransport::CallOutboundLoop "
                               "Enqueued Half Closed";
     return MaybeAddStreamToWritableStreamList(std::move(stream),
                                               enqueue_result.value());

@@ -140,6 +140,8 @@ class Stream : public RefCounted<Stream> {
   // Only server can send trailing metadata in gRPC C++.
   auto EnqueueTrailingMetadata(ServerMetadataHandle&& metadata) {
     GRPC_HTTP2_STREAM_LOG << "Stream::EnqueueTrailingMetadata";
+    GRPC_DCHECK(std::holds_alternative<CallInitiator>(call_))
+        << "Only supported for server";
     return data_queue_->EnqueueTrailingMetadata(std::move(metadata));
   }
 
@@ -195,6 +197,12 @@ class Stream : public RefCounted<Stream> {
   void SentInitialMetadata() {
     GRPC_DCHECK(stream_state_ == HttpStreamState::kIdle);
     stream_state_ = HttpStreamState::kOpen;
+  }
+  void SentTrailingMetadata() {
+    GRPC_DCHECK(stream_state_ != HttpStreamState::kClosed ||
+                stream_state_ != HttpStreamState::kHalfClosedLocal)
+        << "Cannot send trailing metadata in closed or half closed local state";
+    stream_state_ = HttpStreamState::kClosed;
   }
 
   void MarkHalfClosedLocal() {
