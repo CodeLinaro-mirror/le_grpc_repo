@@ -100,6 +100,8 @@ class HeaderAssembler {
 
     // Start header workflow
     header_in_progress_ = true;
+    GRPC_DCHECK_GT(stream_id_, 0u);
+    GRPC_DCHECK_EQ(stream_id_, frame.stream_id);
 
     // Manage payload
     frame.payload.MoveFirstNBytesIntoSliceBuffer(current_len, buffer_);
@@ -121,6 +123,8 @@ class HeaderAssembler {
   Http2Status AppendFrame(Http2ContinuationFrame& frame) {
     // Validate Assembler state
     GRPC_DCHECK(header_in_progress_);
+    GRPC_DCHECK_GT(stream_id_, 0u);
+    GRPC_DCHECK_EQ(stream_id_, frame.stream_id);
 
     // Manage payload
     const size_t current_len = frame.payload.Length();
@@ -195,18 +199,27 @@ class HeaderAssembler {
                   << max_header_list_size_soft_limit
                   << "max_header_list_size_hard_limit: "
                   << max_header_list_size_hard_limit;
-    Http2Status status = ParseHeader(
-        parser, std::move(buffer_), /*grpc_metadata_batch=*/nullptr,
-        ParseHeaderArgs{
-            /*is_initial_metadata=*/is_initial_metadata,
-            /*is_end_headers=*/is_ready_,
-            /*is_client=*/is_client_,
-            /*max_header_list_size_soft_limit=*/max_header_list_size_soft_limit,
-            /*max_header_list_size_hard_limit=*/max_header_list_size_hard_limit,
-            /*stream_id=*/stream_id_,
-        });
-    Cleanup();
-    return status;
+    if (buffer_.Length() > 0) {
+      Http2Status status = ParseHeader(
+          parser, std::move(buffer_), /*grpc_metadata_batch=*/nullptr,
+          ParseHeaderArgs{
+              /*is_initial_metadata=*/is_initial_metadata,
+              /*is_end_headers=*/is_ready_,
+              /*is_client=*/is_client_,
+              /*max_header_list_size_soft_limit=*/
+              max_header_list_size_soft_limit,
+              /*max_header_list_size_hard_limit=*/
+              max_header_list_size_hard_limit,
+              /*stream_id=*/stream_id_,
+          });
+      Cleanup();
+      return status;
+    }
+
+    GRPC_DCHECK(!is_ready_);
+    GRPC_DCHECK(buffer_.Length() == 0);
+    GRPC_DCHECK(!header_in_progress_);
+    return Http2Status::Ok();
   }
 
   size_t GetBufferedHeadersLength() const { return buffer_.Length(); }
@@ -228,12 +241,16 @@ class HeaderAssembler {
   HeaderAssembler(const HeaderAssembler&) = delete;
   HeaderAssembler& operator=(const HeaderAssembler&) = delete;
 
-  void InitializeStream(const uint32_t stream_id,
-                        const bool allow_true_binary_metadata_acked) {
-    GRPC_DCHECK_EQ(stream_id_, 0u);
-    GRPC_DCHECK_NE(stream_id, 0u);
-    stream_id_ = stream_id;
+  void SetAllowTrueBinaryMetadataAcked(bool allow_true_binary_metadata_acked) {
     allow_true_binary_metadata_acked_ = allow_true_binary_metadata_acked;
+  }
+
+  void SetStreamId(uint32_t stream_id) {
+    GRPC_DCHECK_NE(stream_id, 0u);
+    GRPC_DCHECK(!header_in_progress_);
+    GRPC_DCHECK_EQ(is_ready_, false);
+    GRPC_DCHECK(buffer_.Length() == 0);
+    stream_id_ = stream_id;
   }
 
   // HPACK parser helpers
@@ -250,8 +267,8 @@ class HeaderAssembler {
           "is_initial_metadata: ", is_initial_metadata,
           " is_end_headers: ", is_end_headers, " is_client: ", is_client,
           " max_header_list_size_soft_limit: ", max_header_list_size_soft_limit,
-          " max_header_list_size_hard_limit: ",
-          max_header_list_size_hard_limit);
+          " max_header_list_size_hard_limit: ", max_header_list_size_hard_limit,
+          " stream_id:", stream_id);
     }
   };
 
@@ -321,6 +338,7 @@ class HeaderAssembler {
     buffer_.Clear();
     header_in_progress_ = false;
     is_ready_ = false;
+    stream_id_ = 0;
   }
 
   bool header_in_progress_;
