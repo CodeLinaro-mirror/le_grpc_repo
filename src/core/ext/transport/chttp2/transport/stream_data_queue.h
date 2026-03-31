@@ -487,6 +487,10 @@ class StreamDataQueue : public RefCounted<StreamDataQueue<MetadataHandle>> {
     bool IsInitialMetadataDequeued() const {
       return flags.IsInitialMetadataDequeued();
     }
+
+    bool IsTrailingMetadataDequeued() const {
+      return flags.IsTrailingMetadataDequeued();
+    }
   };
 
   // TODO(akshitpatel) : [PH2][P4] : Measure the performance of this function

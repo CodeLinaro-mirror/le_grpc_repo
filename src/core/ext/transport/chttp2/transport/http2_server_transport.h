@@ -311,6 +311,8 @@ class Http2ServerTransport final : public ServerTransport,
   // down towards the endpoint.
   auto CallOutboundLoop(RefCountedPtr<Stream> stream);
 
+  auto HandleMetadataAndMessages(RefCountedPtr<Stream> stream);
+
   // TODO(akshitpatel) : [PH2][P0] : Delete when implementing write loop.
   auto WriteFromQueue();
 
@@ -446,10 +448,7 @@ class Http2ServerTransport final : public ServerTransport,
   absl::Status MaybeAddStreamToWritableStreamList(
       GRPC_UNUSED const RefCountedPtr<Stream> stream,
       GRPC_UNUSED const StreamDataQueue<
-          ClientMetadataHandle>::StreamWritabilityUpdate result) {
-    // TODO(akshitpatel) : [PH2][P0] : Implement this.
-    return absl::OkStatus();
-  }
+          ServerMetadataHandle>::StreamWritabilityUpdate result);
 
   // Returns the next stream id. If the next stream id is not available, it
   // returns std::nullopt. MUST be called from the transport party.
