@@ -47,6 +47,7 @@
 #include "src/core/call/metadata_batch.h"
 #include "src/core/channelz/property_list.h"
 #include "src/core/lib/experiments/experiments.h"
+#include "src/core/lib/iomgr/exec_ctx.h"
 #include "src/core/lib/promise/activity.h"
 #include "src/core/lib/promise/cancel_callback.h"
 #include "src/core/lib/promise/detail/promise_like.h"
@@ -401,6 +402,22 @@ class WaitForCqEndOp {
   }
 };
 
+inline void CompleteBatchOp(grpc_completion_queue* cq, void* notify_tag,
+                            bool is_notify_tag_closure, absl::Status&& status) {
+  // We only need to call grpc_cq_end_op() if the notify_tag is not a
+  // closure.
+  if (is_notify_tag_closure) {
+    ExecCtx exec_ctx;
+    Closure::Run(DEBUG_LOCATION, static_cast<grpc_closure*>(notify_tag),
+                 std::forward<absl::Status>(status));
+  } else {
+    grpc_cq_end_op(
+        cq, notify_tag, std::forward<absl::Status>(status),
+        [](void*, grpc_cq_completion* completion) { delete completion; },
+        nullptr, new grpc_cq_completion);
+  }
+}
+
 template <typename FalliblePart, typename FinalPart>
 auto InfallibleBatch(FalliblePart&& fallible_part, FinalPart&& final_part,
                      bool is_notify_tag_closure, void* notify_tag,
@@ -422,11 +439,9 @@ auto InfallibleBatch(FalliblePart&& fallible_part, FinalPart&& final_part,
                                                         absl::OkStatus(), cq);
                                 }));
       },
-      [cq, notify_tag]() {
-        grpc_cq_end_op(
-            cq, notify_tag, absl::OkStatus(),
-            [](void*, grpc_cq_completion* completion) { delete completion; },
-            nullptr, new grpc_cq_completion);
+      [cq, notify_tag, is_notify_tag_closure]() {
+        CompleteBatchOp(cq, notify_tag, is_notify_tag_closure,
+                        absl::OkStatus());
       });
 }
 
@@ -448,11 +463,9 @@ auto FallibleBatch(FalliblePart&& fallible_part, bool is_notify_tag_closure,
                                         StatusCast<absl::Status>(r), cq);
                 }));
       },
-      [cq]() {
-        grpc_cq_end_op(
-            cq, nullptr, absl::CancelledError(),
-            [](void*, grpc_cq_completion* completion) { delete completion; },
-            nullptr, new grpc_cq_completion);
+      [cq, notify_tag, is_notify_tag_closure]() {
+        CompleteBatchOp(cq, notify_tag, is_notify_tag_closure,
+                        absl::CancelledError());
       });
 }
 
