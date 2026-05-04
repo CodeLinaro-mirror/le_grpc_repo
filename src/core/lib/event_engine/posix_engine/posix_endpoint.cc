@@ -44,7 +44,6 @@
 #include "src/core/util/load_file.h"
 #include "src/core/util/ref_counted_ptr.h"
 #include "src/core/util/status_helper.h"
-#include "src/core/util/strerror.h"
 #include "src/core/util/sync.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/log/log.h"
@@ -370,8 +369,8 @@ bool PosixEndpointImpl::TcpDoRead(absl::Status& status) {
       } else if (read_bytes == 0) {
         status = TcpAnnotateError(absl::InternalError("Socket closed"));
       } else {
-        status = TcpAnnotateError(absl::InternalError(
-            absl::StrCat("recvmsg:", grpc_core::StrError(errno))));
+        status = TcpAnnotateError(
+            absl::InternalError(absl::StrCat("recvmsg:", res.StrError())));
       }
       return true;
     }
@@ -1270,7 +1269,7 @@ void PosixEndpointImpl::MaybeShutdown(
   Unref();
 }
 
-PosixEndpointImpl ::~PosixEndpointImpl() {
+PosixEndpointImpl::~PosixEndpointImpl() {
   FileDescriptor release_fd;
   handle_->OrphanHandle(on_done_,
                         on_release_fd_ == nullptr ? nullptr : &release_fd, "");
