@@ -527,9 +527,6 @@ class Http2ClientTransport final : public ClientTransport,
   void MaybeSpawnCloseTransport(Http2Status http2_status,
                                 DebugLocation whence = {});
 
-  bool CanCloseTransportLocked() const
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(transport_mutex_);
-
   // This function MUST run on the transport party.
   void CloseTransport();
 
