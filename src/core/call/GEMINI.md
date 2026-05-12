@@ -28,24 +28,70 @@ status.
 *   **`ServerCall`**: The `ServerCall` is the public server-side API for a call.
     It wraps the `CallHandler` and `CallSpine`.
 
+## Differentiating Call V1 and Call V3 Code
+
+*   **Implementation Class**: The classes used to represent the call interface.
+    *   Call V1: `FilterStackCall`
+    *   Call V3: `ClientCall` or `ServerCall`
+*   **Key Abstractions**: The foundational pipeline components.
+    *   Call V1: Filter stacks and combiners
+    *   Call V3: `CallSpine` and `CallInitiator` / `CallHandler`
+*   **`call_stack()` Accessor**: The return value of the `call_stack()` method.
+    *   Call V1: Non-null pointer (`grpc_call_stack*`)
+    *   Call V3: `nullptr`
+*   **Concurrency Model**: Concurrency and thread safety mechanism.
+    *   Call V1: Combiners
+    *   Call V3: gRPC Promise library with `Party`
+*   **Operation Interface**: Interface for committing batch operations.
+    *   Call V1: `grpc_transport_stream_op_batch`
+    *   Call V3: Promise pipes and push/pull API
+*   **Companion Transports**: Transport layers compatible with each stack.
+    *   Call V1: CHTTP2 transport
+    *   Call V3: PH2 or Chaotic Good transports
+    *   For details about the transports see
+        [chttp2/GEMINI.md](../ext/transport/chttp2/GEMINI.md) and
+        [chaotic_good/GEMINI.md](../ext/transport/chaotic_good/GEMINI.md)
+*   **Creation Method**: The entry point used to instantiate new calls.
+    *   Call V1: `grpc_call_create`
+    *   Call V3: Spine initialization or `MakeClientCall`
+*   **Exclusive Files**: C++ source files exclusive to each stack model.
+    *   Call V1:
+        *   `src/core/lib/surface/filter_stack_call.{h,cc}`
+        *   `src/core/lib/surface/legacy_channel.{h,cc}`
+        *   `src/core/lib/channel/channel_stack.{h,cc}`
+        *   `src/core/lib/channel/channel_stack_builder.{h,cc}`
+        *   `src/core/ext/filters/channel_idle/legacy_channel_idle_filter.cc`
+    *   Call V3:
+        *   `src/core/call/client_call.{h,cc}`
+        *   `src/core/call/server_call.{h,cc}`
+        *   `src/core/call/call_spine.{h,cc}`
+        *   `src/core/call/call_filters.{h,cc}`
+        *   `src/core/client_channel/direct_channel.{h,cc}`
+*   **Shared Files**: Source files used by both Call V1 and Call V3.
+    *   `src/core/lib/surface/call.{h,cc}`
+    *   `src/core/lib/surface/call_utils.{h,cc}`
+    *   `src/core/call/metadata.{h,cc}`
+    *   `src/core/call/metadata_batch.{h,cc}`
+
 ## Files
 
-*   **`call_spine.h`, `call_spine.cc`**: These files define the `CallSpine`
+*   **`src/core/call/call_spine.{h,cc}`**: These files define the `CallSpine`
     class.
-*   **`client_call.h`, `client_call.cc`**: These files define the `ClientCall`
+*   **`src/core/call/client_call.{h,cc}`**: These files define the `ClientCall`
     class.
-*   **`server_call.h`, `server_call.cc`**: These files define the `ServerCall`
+*   **`src/core/call/server_call.{h,cc}`**: These files define the `ServerCall`
     class.
-*   **`metadata.h`, `metadata_batch.h`**: These files provide the data
+*   **`src/core/call/metadata.{h,cc}`**,
+    **`src/core/call/metadata_batch.{h,cc}`**: These files provide the data
     structures for representing and manipulating RPC metadata.
-*   **`message.h`**: Defines the `Message` class, which is a container for RPC
-    messages.
-*   **`call_filters.h`, `call_filters.cc`**: These files define the
+*   **`src/core/call/message.{h,cc}`**: Defines the `Message` class, which is a
+    container for RPC messages.
+*   **`src/core/call/call_filters.{h,cc}`**: These files define the
     `CallFilters` class, which is responsible for managing the filters for a
     call.
-*   **`interception_chain.h`, `interception_chain.cc`**: These files define the
-    `InterceptionChain` class, which is used to manage the execution of a set of
-    interceptors.
+*   **`src/core/call/interception_chain.{h,cc}`**: These files define the
+    `InterceptionChain` class, which is used to manage the execution of a set
+    of interceptors.
 
 ## Notes
 
