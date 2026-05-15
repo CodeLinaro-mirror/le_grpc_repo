@@ -807,6 +807,155 @@ TEST_F(Http2ReadContextTest, PauseAndWake) {
                "SetPause Pause Wake _ . EndRead Wake EndWrite ");
 }
 
+TEST_F(Http2ReadContextTest, SetAndGetFrameHeader) {
+  // Purpose: Verify that SetCurrentFrameHeader stores header attributes
+  // correctly. Assertions: GetCurrentFrameHeader returns the exact frame header
+  // that was set.
+  Http2ReadContext context;
+  Http2FrameHeader header;
+  header.length = 100u;
+  header.type = 1u;
+  header.flags = 2u;
+  header.stream_id = 3u;
+
+  context.SetCurrentFrameHeader(header);
+  const Http2FrameHeader& retrieved_header = context.GetCurrentFrameHeader();
+  EXPECT_EQ(retrieved_header.length, 100u);
+  EXPECT_EQ(retrieved_header.type, 1u);
+  EXPECT_EQ(retrieved_header.flags, 2u);
+  EXPECT_EQ(retrieved_header.stream_id, 3u);
+}
+
+TEST_F(Http2ReadContextTest, ReadCycleMaxFramesLimit) {
+  // Purpose: Verify reading maximum allowed frames triggers a pause.
+  // Assertions: MaybePauseReadLoop returns Pending state when frame limit is
+  // reached.
+  ExecCtx ctx;
+  RefCountedPtr<Party> party = MakeParty();
+  Http2ReadContext read_context;
+  bool was_pending = false;
+  Notification notification;
+
+  party->Spawn(
+      "TestMaxFrames",
+      [&read_context, &was_pending]() -> Poll<absl::Status> {
+        Http2FrameHeader header;
+        header.length = 1u;
+        header.type = 0u;
+        header.flags = 0u;
+        header.stream_id = 1u;
+
+        for (uint32_t i = 0u; i < kMaxFramesReadPerReadCycle; ++i) {
+          read_context.SetCurrentFrameHeader(header);
+        }
+        Poll<absl::Status> poll_result = read_context.MaybePauseReadLoop();
+        if (poll_result.pending()) {
+          was_pending = true;
+          read_context.ResumeReadLoopIfPaused();
+          return absl::OkStatus();
+        }
+        return absl::OkStatus();
+      },
+      [&notification](absl::Status status) { notification.Notify(); });
+
+  notification.WaitForNotification();
+  EXPECT_TRUE(was_pending);
+}
+
+TEST_F(Http2ReadContextTest, ReadCycleMaxBytesLimit) {
+  // Purpose: Verify reading maximum allowed bytes triggers a pause.
+  // Assertions: MaybePauseReadLoop returns Pending state when byte limit is
+  // reached.
+  ExecCtx ctx;
+  RefCountedPtr<Party> party = MakeParty();
+  Http2ReadContext read_context;
+  bool was_pending = false;
+  Notification notification;
+
+  party->Spawn(
+      "TestMaxBytes",
+      [&read_context, &was_pending]() -> Poll<absl::Status> {
+        Http2FrameHeader header;
+        header.length = kMaxBytesReadPerReadCycle;
+        header.type = 0u;
+        header.flags = 0u;
+        header.stream_id = 1u;
+
+        read_context.SetCurrentFrameHeader(header);
+        Poll<absl::Status> poll_result = read_context.MaybePauseReadLoop();
+        if (poll_result.pending()) {
+          was_pending = true;
+          read_context.ResumeReadLoopIfPaused();
+          return absl::OkStatus();
+        }
+        return absl::OkStatus();
+      },
+      [&notification](absl::Status status) { notification.Notify(); });
+
+  notification.WaitForNotification();
+  EXPECT_TRUE(was_pending);
+}
+
+TEST_F(Http2ReadContextTest, ReadCycleUnderLimitsNoPause) {
+  // Verify borderline conditions right below cycle limits do not
+  // pause.
+  // Assertions: MaybePauseReadLoop returns OkStatus exactly at boundary
+  // borderlines.
+  ExecCtx ctx;
+  RefCountedPtr<Party> party = MakeParty();
+  bool was_frames_pending = false;
+  bool was_bytes_pending = false;
+  Notification notification;
+
+  party->Spawn(
+      "TestBorderlines",
+      [&was_frames_pending, &was_bytes_pending]() -> Poll<absl::Status> {
+        // Check 1: Exactly kMaxFramesReadPerReadCycle - 1 frames.
+        {
+          Http2ReadContext read_context;
+          Http2FrameHeader header;
+          header.length = 0u;
+          header.type = 0u;
+          header.flags = 0u;
+          header.stream_id = 1u;
+
+          for (uint32_t i = 0u; i < kMaxFramesReadPerReadCycle - 1u; ++i) {
+            read_context.SetCurrentFrameHeader(header);
+          }
+          Poll<absl::Status> poll_result = read_context.MaybePauseReadLoop();
+          if (poll_result.pending()) {
+            was_frames_pending = true;
+            read_context.ResumeReadLoopIfPaused();
+            return absl::OkStatus();
+          }
+        }
+
+        // Check 2: Exactly kMaxBytesReadPerReadCycle - 1 bytes total.
+        {
+          Http2ReadContext read_context;
+          Http2FrameHeader header;
+          header.length = kMaxBytesReadPerReadCycle - kFrameHeaderSize - 1u;
+          header.type = 0u;
+          header.flags = 0u;
+          header.stream_id = 1u;
+
+          read_context.SetCurrentFrameHeader(header);
+          Poll<absl::Status> poll_result = read_context.MaybePauseReadLoop();
+          if (poll_result.pending()) {
+            was_bytes_pending = true;
+            read_context.ResumeReadLoopIfPaused();
+            return absl::OkStatus();
+          }
+        }
+        return absl::OkStatus();
+      },
+      [&notification](absl::Status status) { notification.Notify(); });
+
+  notification.WaitForNotification();
+  EXPECT_FALSE(was_frames_pending);
+  EXPECT_FALSE(was_bytes_pending);
+}
+
 TEST(Http2CommonTransportTest, TestTarpitDuration) {
   // Verify that TarpitDuration generates random values within bounds across
   // many runs.

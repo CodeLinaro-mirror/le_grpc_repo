@@ -292,14 +292,18 @@ Http2Status Http2ServerTransport::ProcessIncomingFrame(Http2DataFrame&& frame) {
 
   RefCountedPtr<Stream> stream = LookupStream(frame.stream_id);
 
-  ValueOrHttp2Status<chttp2::FlowControlAction> flow_control_action =
-      ProcessIncomingDataFrameFlowControl(current_frame_header_, flow_control_,
-                                          stream.get());
-  if (!flow_control_action.IsOk()) {
-    return ValueOrHttp2Status<chttp2::FlowControlAction>::TakeStatus(
-        std::move(flow_control_action));
+  if (frame.payload.Length() > 0) {
+    // DATA frames with empty payload are legitimate frames. CHTTP2 and PH2 send
+    // empty DATA frames with END_Stream flag set to true.
+    ValueOrHttp2Status<chttp2::FlowControlAction> flow_control_action =
+        ProcessIncomingDataFrameFlowControl(
+            reader_state_.GetCurrentFrameHeader(), flow_control_, stream.get());
+    if (!flow_control_action.IsOk()) {
+      return ValueOrHttp2Status<chttp2::FlowControlAction>::TakeStatus(
+          std::move(flow_control_action));
+    }
+    ActOnFlowControlAction(flow_control_action.value(), stream.get());
   }
-  ActOnFlowControlAction(flow_control_action.value(), stream.get());
 
   if (stream == nullptr) {
     // TODO(tjagtap) : [PH2][P2] : Implement the correct behaviour later.
@@ -493,8 +497,15 @@ Http2Status Http2ServerTransport::ProcessIncomingFrame(
                              /*stream=*/nullptr);
     } else {
       // CHTTP2 returns a connection error for an unsolicited SETTINGS ACK.
-      // However, we ignore it in PH2 since RFC 9113 doesn't explicitly mandate
-      // an error.
+      // PH2 gives some grace.
+      incoming_headers_.mutable_tracker().num_unsolicited_settings_acks++;
+      if (GPR_UNLIKELY(
+              incoming_headers_.tracker().num_unsolicited_settings_acks >=
+              kMaxUnsolicitedSettingsAcks)) {
+        return Http2Status::Http2ConnectionError(
+            Http2ErrorCode::kInternalError,
+            std::string(GrpcErrors::kTooManyUnsolicitedSettingsAcks));
+      }
       LOG(ERROR) << "Settings ack received without sending settings. Ignore.";
     }
   }
@@ -758,7 +769,8 @@ auto Http2ServerTransport::ReadAndProcessOneFrame() {
             // TODO(tjagtap) : [PH2][P0] : Fix
             /*last_stream_id=*//*GetLastStreamId()*/ 100,
             /*is_client=*/kIsClient, /*is_first_settings_processed=*/
-            settings_->IsFirstPeerSettingsApplied());
+            settings_->IsFirstPeerSettingsApplied(),
+            /*tracker=*/incoming_headers_.mutable_tracker());
 
         if (GPR_UNLIKELY(!status.IsOk())) {
           GRPC_DCHECK(status.GetType() ==
@@ -769,41 +781,48 @@ auto Http2ServerTransport::ReadAndProcessOneFrame() {
             << "Http2ServerTransport::ReadAndProcessOneFrame "
                "Validated Frame Header:"
             << header.ToString();
-        current_frame_header_ = header;
+        reader_state_.SetCurrentFrameHeader(header);
         return absl::OkStatus();
       },
       // Read the payload of the frame.
       [this]() {
         GRPC_HTTP2_SERVER_DLOG
             << "Http2ServerTransport::ReadAndProcessOneFrame Read Frame ";
-        return AssertResultType<absl::Status>(Map(
-            EndpointRead(current_frame_header_.length),
-            [this](absl::StatusOr<SliceBuffer>&& payload) {
-              if (GPR_UNLIKELY(!payload.ok())) {
-                return payload.status();
-              }
-              GRPC_HTTP2_SERVER_DLOG
-                  << "Http2ServerTransport::ReadAndProcessOneFrame "
-                     "ParseFramePayload payload length: "
-                  << payload.value().Length();
-              ValueOrHttp2Status<Http2Frame> frame = ParseFramePayload(
-                  current_frame_header_, TakeValue(std::move(payload)));
-              if (GPR_UNLIKELY(!frame.IsOk())) {
-                return HandleError(current_frame_header_.stream_id,
-                                   ValueOrHttp2Status<Http2Frame>::TakeStatus(
-                                       std::move(frame)));
-              }
-              Http2Status status =
-                  ProcessOneIncomingFrame(TakeValue(std::move(frame)));
-              if (GPR_UNLIKELY(!status.IsOk())) {
-                return HandleError(current_frame_header_.stream_id,
-                                   std::move(status));
-              }
-              return absl::OkStatus();
-            }));
+        return AssertResultType<absl::Status>(
+            Map(EndpointRead(reader_state_.GetCurrentFrameHeader().length),
+                [this](absl::StatusOr<SliceBuffer>&& payload) {
+                  if (GPR_UNLIKELY(!payload.ok())) {
+                    return payload.status();
+                  }
+                  GRPC_HTTP2_SERVER_DLOG
+                      << "Http2ServerTransport::ReadAndProcessOneFrame "
+                         "ParseFramePayload payload length: "
+                      << payload.value().Length();
+                  ValueOrHttp2Status<Http2Frame> frame =
+                      ParseFramePayload(reader_state_.GetCurrentFrameHeader(),
+                                        TakeValue(std::move(payload)));
+                  if (GPR_UNLIKELY(!frame.IsOk())) {
+                    return HandleError(
+                        reader_state_.GetCurrentFrameHeader().stream_id,
+                        ValueOrHttp2Status<Http2Frame>::TakeStatus(
+                            std::move(frame)));
+                  }
+                  Http2Status status =
+                      ProcessOneIncomingFrame(TakeValue(std::move(frame)));
+                  if (GPR_UNLIKELY(!status.IsOk())) {
+                    return HandleError(
+                        reader_state_.GetCurrentFrameHeader().stream_id,
+                        std::move(status));
+                  }
+                  return absl::OkStatus();
+                }));
       },
       [this]() -> Poll<absl::Status> {
-        return reader_state_.MaybePauseReadLoop();
+        Poll<absl::Status> poll_result = reader_state_.MaybePauseReadLoop();
+        if (poll_result.pending()) {
+          TriggerWriteCycleOrHandleError();
+        }
+        return poll_result;
       }));
 }
 
