@@ -25,6 +25,7 @@
 #include <grpc/slice_buffer.h>
 #include <grpc/support/port_platform.h>
 
+#include <functional>
 #include <memory>
 
 #include "src/core/ext/transport/chttp2/transport/chttp2_transport.h"
@@ -33,14 +34,35 @@
 #include "src/core/lib/surface/channel.h"
 #include "src/core/lib/surface/channel_create.h"
 #include "src/core/lib/surface/channel_stack_type.h"
+#include "src/core/lib/transport/transport.h"
 #include "src/core/transport/session_endpoint.h"
 #include "src/core/util/ref_counted_ptr.h"
 #include "absl/status/statusor.h"
 
 namespace grpc_core {
 
+class GoawayWatcher : public Transport::StateWatcher {
+ public:
+  explicit GoawayWatcher(std::function<void()> callback)
+      : callback_(std::move(callback)) {}
+  void OnDisconnect(absl::Status /*status*/,
+                    DisconnectInfo disconnect_info) override {
+    if (disconnect_info.reason == Transport::StateWatcher::kGoaway) {
+      callback_();
+    }
+  }
+  void OnPeerMaxConcurrentStreamsUpdate(
+      uint32_t /*max_concurrent_streams*/,
+      std::unique_ptr<MaxConcurrentStreamsUpdateDoneHandle> /*on_done*/)
+      override {}
+  grpc_pollset_set* interested_parties() const override { return nullptr; }
+
+ private:
+  std::function<void()> callback_;
+};
+
 absl::StatusOr<RefCountedPtr<Channel>> VirtualChannel::Create(
-    grpc_call* call, ChannelArgs args) {
+    grpc_call* call, ChannelArgs args, std::function<void()> goaway_callback) {
   Call* core_call = Call::FromC(call);
 
   // TODO(snohria): Add support for Call V3.
@@ -70,6 +92,12 @@ absl::StatusOr<RefCountedPtr<Channel>> VirtualChannel::Create(
   auto legacy_endpoint = SessionEndpoint::Create(call, true);
   auto transport = grpc_create_chttp2_transport(
       args, OrphanablePtr<grpc_endpoint>(legacy_endpoint), true);
+
+  if (goaway_callback != nullptr) {
+    transport->StartWatch(
+        MakeRefCounted<GoawayWatcher>(std::move(goaway_callback)));
+  }
+
   auto channel = ChannelCreate("virtual_target", args,
                                GRPC_CLIENT_VIRTUAL_CHANNEL, transport);
   if (!channel.ok()) {

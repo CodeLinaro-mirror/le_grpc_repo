@@ -27,6 +27,7 @@
 #include <grpcpp/support/config.h>
 #include <grpcpp/virtual_channel.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -66,12 +67,14 @@ std::shared_ptr<grpc::Channel> CreateVirtualChannel(grpc::internal::Call call) {
 }
 
 std::shared_ptr<grpc::Channel> CreateVirtualChannel(
-    grpc::internal::Call call, const grpc::ChannelArguments& args) {
+    grpc::internal::Call call, const grpc::ChannelArguments& args,
+    std::function<void()> goaway_callback) {
   grpc_core::ExecCtx exec_ctx;
   grpc_core::ChannelArgs core_args =
       grpc_core::ChannelArgs::FromC(args.c_channel_args());
 
-  auto core_channel = grpc_core::VirtualChannel::Create(call.call(), core_args);
+  auto core_channel = grpc_core::VirtualChannel::Create(call.call(), core_args,
+                                                        goaway_callback);
   GRPC_CHECK(core_channel.ok());
 
   return grpc::CreateChannelInternal(

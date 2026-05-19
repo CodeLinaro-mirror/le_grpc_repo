@@ -24,6 +24,7 @@
 #include <grpcpp/support/channel_arguments.h>
 #include <grpcpp/support/config.h>
 
+#include <functional>
 #include <memory>
 
 namespace grpc {
@@ -42,8 +43,11 @@ std::shared_ptr<Channel> CreateVirtualChannel(grpc::internal::Call call);
 ///
 /// \param call The call object to create the virtual channel from.
 /// \param args Options for channel creation.
-std::shared_ptr<Channel> CreateVirtualChannel(grpc::internal::Call call,
-                                              const ChannelArguments& args);
+/// \param goaway_callback Callback to be invoked when the channel receives a
+/// GOAWAY.
+std::shared_ptr<Channel> CreateVirtualChannel(
+    grpc::internal::Call call, const ChannelArguments& args,
+    std::function<void()> goaway_callback = nullptr);
 }  // namespace experimental
 }  // namespace grpc
 

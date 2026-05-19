@@ -478,6 +478,7 @@ class ClientSessionReactor : public internal::ClientReactor {
   void OnDone(const grpc::Status& /*s*/) override {}
   virtual void OnSessionReady(grpc::internal::Call call) = 0;
   virtual void OnSessionAcknowledged(bool /*ok*/) {}
+  virtual void OnGracefulShutdown() {}
 
  private:
   friend class ClientCallbackSession;
