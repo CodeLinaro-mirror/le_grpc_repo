@@ -255,6 +255,10 @@ const char* const description_use_call_event_engine_in_completion_queue =
     "Use the call event engine to run callbacks in completion queue.";
 const char* const
     additional_constraints_use_call_event_engine_in_completion_queue = "{}";
+const char* const description_verbose_channelz_connection_logging =
+    "Verbose logging of events into channelz during connection setup.";
+const char* const additional_constraints_verbose_channelz_connection_logging =
+    "{}";
 const char* const description_wildcard_ip_expansion_restriction =
     "If set, adds optional restriction on when to expand wildcard IPs.";
 const char* const additional_constraints_wildcard_ip_expansion_restriction =
@@ -442,6 +446,10 @@ const ExperimentMetadata g_experiment_metadata[] = {
      description_use_call_event_engine_in_completion_queue,
      additional_constraints_use_call_event_engine_in_completion_queue, nullptr,
      0, false, true},
+    {"verbose_channelz_connection_logging",
+     description_verbose_channelz_connection_logging,
+     additional_constraints_verbose_channelz_connection_logging, nullptr, 0,
+     false, true},
     {"wildcard_ip_expansion_restriction",
      description_wildcard_ip_expansion_restriction,
      additional_constraints_wildcard_ip_expansion_restriction, nullptr, 0,
@@ -684,6 +692,10 @@ const char* const description_use_call_event_engine_in_completion_queue =
     "Use the call event engine to run callbacks in completion queue.";
 const char* const
     additional_constraints_use_call_event_engine_in_completion_queue = "{}";
+const char* const description_verbose_channelz_connection_logging =
+    "Verbose logging of events into channelz during connection setup.";
+const char* const additional_constraints_verbose_channelz_connection_logging =
+    "{}";
 const char* const description_wildcard_ip_expansion_restriction =
     "If set, adds optional restriction on when to expand wildcard IPs.";
 const char* const additional_constraints_wildcard_ip_expansion_restriction =
@@ -871,6 +883,10 @@ const ExperimentMetadata g_experiment_metadata[] = {
      description_use_call_event_engine_in_completion_queue,
      additional_constraints_use_call_event_engine_in_completion_queue, nullptr,
      0, false, true},
+    {"verbose_channelz_connection_logging",
+     description_verbose_channelz_connection_logging,
+     additional_constraints_verbose_channelz_connection_logging, nullptr, 0,
+     false, true},
     {"wildcard_ip_expansion_restriction",
      description_wildcard_ip_expansion_restriction,
      additional_constraints_wildcard_ip_expansion_restriction, nullptr, 0,
@@ -1113,6 +1129,10 @@ const char* const description_use_call_event_engine_in_completion_queue =
     "Use the call event engine to run callbacks in completion queue.";
 const char* const
     additional_constraints_use_call_event_engine_in_completion_queue = "{}";
+const char* const description_verbose_channelz_connection_logging =
+    "Verbose logging of events into channelz during connection setup.";
+const char* const additional_constraints_verbose_channelz_connection_logging =
+    "{}";
 const char* const description_wildcard_ip_expansion_restriction =
     "If set, adds optional restriction on when to expand wildcard IPs.";
 const char* const additional_constraints_wildcard_ip_expansion_restriction =
@@ -1300,6 +1320,10 @@ const ExperimentMetadata g_experiment_metadata[] = {
      description_use_call_event_engine_in_completion_queue,
      additional_constraints_use_call_event_engine_in_completion_queue, nullptr,
      0, false, true},
+    {"verbose_channelz_connection_logging",
+     description_verbose_channelz_connection_logging,
+     additional_constraints_verbose_channelz_connection_logging, nullptr, 0,
+     false, true},
     {"wildcard_ip_expansion_restriction",
      description_wildcard_ip_expansion_restriction,
      additional_constraints_wildcard_ip_expansion_restriction, nullptr, 0,
