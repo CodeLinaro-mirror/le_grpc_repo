@@ -584,6 +584,89 @@ class MessageReceiver {
       GRPC_COMPRESS_NONE;
 };
 
+// Tracks and validates the state of operations on a call to ensure invariants.
+//
+// Invariants validated:
+// 1. Intra-batch duplicates: A single batch cannot contain multiple operations
+//    of the same type.
+// 2. Once-only operations: Operations like sending initial metadata or closing
+//    the call can only be performed once.
+// 3. Concurrent operations: Operations like sending or receiving messages
+//    cannot run concurrently (i.e., a new one cannot start until the previous
+//    one completes).
+//
+// This class is thread-safe.
+class CallOpInvariantsValidator {
+ public:
+  CallOpInvariantsValidator() : ops_state_(0) {}
+
+  // Validates a batch of operations against the current call state and commits
+  // them if valid.
+  //
+  // Returns GRPC_CALL_OK if the batch is valid and its operations are
+  // successfully committed to the active state.
+  // Returns GRPC_CALL_ERROR_TOO_MANY_OPERATIONS if:
+  // - The batch contains duplicate operations of the same type.
+  // - Any operation in the batch conflicts with the current state (either
+  //   because a once-only operation has already been performed, or a
+  //   concurrent operation is already active).
+  grpc_call_error ValidateAndCommit(const grpc_op* ops, size_t nops) {
+    if (!IsCallv3BatchValidationEnabled()) {
+      return GRPC_CALL_OK;
+    }
+
+    uint8_t batch_ops = 0;
+    for (size_t i = 0; i < nops; i++) {
+      uint8_t op_bit = OpBit(ops[i].op);
+      // Detect intra-batch duplicate operations!
+      if ((batch_ops & op_bit) != 0) {
+        return GRPC_CALL_ERROR_TOO_MANY_OPERATIONS;
+      }
+      batch_ops |= op_bit;
+    }
+
+    uint8_t current_state = ops_state_.load(std::memory_order_relaxed);
+    while (true) {
+      if ((current_state & batch_ops) != 0) {
+        return GRPC_CALL_ERROR_TOO_MANY_OPERATIONS;
+      }
+      if (ops_state_.compare_exchange_weak(
+              current_state, current_state | batch_ops,
+              std::memory_order_relaxed, std::memory_order_relaxed)) {
+        return GRPC_CALL_OK;
+      }
+    }
+  }
+
+  // Resets the state of a concurrent operation, marking it as no longer active.
+  // This allows subsequent operations of the same type to be validated and
+  // committed. Should be called when the operation completes.
+  void ResetConcurrentOps(uint8_t ops_mask) {
+    if (ops_mask == 0 || !IsCallv3BatchValidationEnabled()) {
+      return;
+    }
+    GRPC_DCHECK((ops_mask & kConcurrentOpsMask) != 0);
+    GRPC_DCHECK((ops_mask & kOnceOpsMask) == 0);
+    ops_state_.fetch_and(~ops_mask, std::memory_order_relaxed);
+  }
+
+  static constexpr uint8_t OpBit(const grpc_op_type op) { return 1 << op; }
+
+ private:
+  static constexpr uint8_t kOnceOpsMask =
+      (1 << GRPC_OP_SEND_INITIAL_METADATA) |
+      (1 << GRPC_OP_SEND_CLOSE_FROM_CLIENT) |
+      (1 << GRPC_OP_SEND_STATUS_FROM_SERVER) |
+      (1 << GRPC_OP_RECV_INITIAL_METADATA) |
+      (1 << GRPC_OP_RECV_STATUS_ON_CLIENT) |
+      (1 << GRPC_OP_RECV_CLOSE_ON_SERVER);
+
+  static constexpr uint8_t kConcurrentOpsMask =
+      (1 << GRPC_OP_SEND_MESSAGE) | (1 << GRPC_OP_RECV_MESSAGE);
+
+  std::atomic<uint8_t> ops_state_;
+};
+
 std::string MakeErrorString(const ServerMetadata* trailing_metadata);
 
 }  // namespace grpc_core

@@ -133,6 +133,26 @@ class ClientCall final
     UnorderedStart* next;
   };
 
+  class PrimaryOpsCleanup {
+   public:
+    explicit PrimaryOpsCleanup(WeakRefCountedPtr<ClientCall> self,
+                               uint8_t concurrent_ops_to_reset)
+        : self_(std::move(self)),
+          concurrent_ops_to_reset_(concurrent_ops_to_reset) {}
+
+    ~PrimaryOpsCleanup() {
+      if (concurrent_ops_to_reset_ == 0) return;
+      if (self_ != nullptr) {
+        self_->call_op_invariants_validator_.ResetConcurrentOps(
+            concurrent_ops_to_reset_);
+      }
+    }
+
+   private:
+    WeakRefCountedPtr<ClientCall> self_;
+    uint8_t concurrent_ops_to_reset_;
+  };
+
   void CommitBatch(const grpc_op* ops, size_t nops, void* notify_tag,
                    bool is_notify_tag_closure);
   template <typename Batch>
@@ -178,6 +198,7 @@ class ClientCall final
   // otherwise the server trailing metadata from started_call_initiator_ is
   // authoritative.
   SingleSetPtr<absl::Status> cancel_status_;
+  CallOpInvariantsValidator call_op_invariants_validator_;
   MessageReceiver message_receiver_;
   grpc_completion_queue* const cq_;
   const RefCountedPtr<UnstartedCallDestination> call_destination_;

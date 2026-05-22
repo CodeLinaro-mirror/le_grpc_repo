@@ -158,12 +158,33 @@ class ServerCall final : public Call, public DualRefCounted<ServerCall> {
   }
 
  private:
+  class PrimaryOpsCleanup {
+   public:
+    explicit PrimaryOpsCleanup(WeakRefCountedPtr<ServerCall> self,
+                               uint8_t concurrent_ops_to_reset)
+        : self_(std::move(self)),
+          concurrent_ops_to_reset_(concurrent_ops_to_reset) {}
+
+    ~PrimaryOpsCleanup() {
+      if (concurrent_ops_to_reset_ == 0) return;
+      if (self_ != nullptr) {
+        self_->call_op_invariants_validator_.ResetConcurrentOps(
+            concurrent_ops_to_reset_);
+      }
+    }
+
+   private:
+    WeakRefCountedPtr<ServerCall> self_;
+    uint8_t concurrent_ops_to_reset_;
+  };
+
   void CommitBatch(const grpc_op* ops, size_t nops, void* notify_tag,
                    bool is_notify_tag_closure);
 
   std::string DebugTag() { return absl::StrFormat("SERVER_CALL[%p]: ", this); }
 
   CallHandler call_handler_;
+  CallOpInvariantsValidator call_op_invariants_validator_;
   std::atomic<bool> sent_server_initial_metadata_batch_{false};
   Latch<void> server_initial_metadata_scheduled_;
   MessageReceiver message_receiver_;
