@@ -40,6 +40,8 @@ message Settings {
     // Sent client->server on the control channel to advertise its list
     // And server->client to confirm the set that will be used.
     repeated Features supported_features = 5;
+    // Bounded dynamic data connections settings mapping
+    optional int32 num_data_connections = 6;
 }
 
 message UnknownMetadata {
