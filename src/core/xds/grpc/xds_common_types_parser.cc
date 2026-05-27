@@ -22,9 +22,13 @@
 
 #include <algorithm>
 #include <map>
+#include <string>
 #include <utility>
 
+#include "absl/strings/match.h"
+#include "absl/strings/string_view.h"
 #include "envoy/config/core/v3/address.upb.h"
+#include "envoy/config/core/v3/base.upb.h"
 #include "envoy/extensions/transport_sockets/tls/v3/common.upb.h"
 #include "envoy/extensions/transport_sockets/tls/v3/tls.upb.h"
 #include "envoy/type/matcher/v3/regex.upb.h"
@@ -39,6 +43,7 @@
 #include "src/core/util/env.h"
 #include "src/core/util/json/json_reader.h"
 #include "src/core/util/upb_utils.h"
+#include "src/core/util/validation_errors.h"
 #include "src/core/xds/grpc/xds_bootstrap_grpc.h"
 #include "src/core/xds/xds_client/xds_client.h"
 #include "upb/base/status.hpp"
@@ -653,27 +658,18 @@ std::pair<std::string, std::string> ParseHeader(
       }
     }
   }
-  // value or raw_value
-  absl::string_view value;
-  if (absl::EndsWith(key, "-bin")) {
-    value =
-        GetHeaderValue(envoy_config_core_v3_HeaderValue_raw_value(header_value),
-                       ".raw_value", /*validate=*/false, errors);
-    if (value.empty()) {
-      value =
-          GetHeaderValue(envoy_config_core_v3_HeaderValue_value(header_value),
-                         ".value", /*validate=*/true, errors);
-      if (value.empty()) {
-        errors->AddError("either value or raw_value must be set");
-      }
-    }
-  } else {
-    // Key does not end in "-bin".
+  // Per gRFC A102, when reading HeaderValue protos, we prioritize reading
+  // the raw_value field for both binary and non-binary headers across xDS and
+  // side-streams. If raw_value is unset, we fall back to using the value field
+  // for backward compatibility.
+  absl::string_view value = GetHeaderValue(
+      envoy_config_core_v3_HeaderValue_raw_value(header_value), ".raw_value",
+      /*validate=*/!absl::EndsWith(key, "-bin"), errors);
+  if (value.empty()) {
     value = GetHeaderValue(envoy_config_core_v3_HeaderValue_value(header_value),
                            ".value", /*validate=*/true, errors);
     if (value.empty()) {
-      ValidationErrors::ScopedField field(errors, ".value");
-      errors->AddError("field not set");
+      errors->AddError("either value or raw_value must be set");
     }
   }
   return {std::string(key), std::string(value)};

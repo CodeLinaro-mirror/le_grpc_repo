@@ -1233,12 +1233,13 @@ TEST_F(ParseXdsGrpcServiceTest, InvalidHeaderKeyAndValue) {
           "error:header \"grpc-foo\" not allowed]"));
 }
 
-TEST_F(ParseXdsGrpcServiceTest, RawHeaderValueForBinaryHeader) {
+TEST_F(ParseXdsGrpcServiceTest, RawHeaderTakesPrecedence) {
   xds_client_ = MakeXdsClient("", /*trusted_xds_server=*/true);
   GrpcService grpc_service;
   auto* header_value = grpc_service.add_initial_metadata();
   header_value->set_key("foo-bin");
   header_value->set_raw_value("\x1f");
+  header_value->set_value("ignored_value");
   auto* google_grpc = grpc_service.mutable_google_grpc();
   google_grpc->set_target_uri("dns:server.example.com");
   google_grpc->add_channel_credentials_plugin()->PackFrom(
@@ -1253,7 +1254,7 @@ TEST_F(ParseXdsGrpcServiceTest, RawHeaderValueForBinaryHeader) {
             "dns:server.example.com");
 }
 
-TEST_F(ParseXdsGrpcServiceTest, RawHeaderValueForNonBinaryHeader) {
+TEST_F(ParseXdsGrpcServiceTest, RawHeaderValidation) {
   xds_client_ = MakeXdsClient("", /*trusted_xds_server=*/true);
   GrpcService grpc_service;
   auto* header_value = grpc_service.add_initial_metadata();
@@ -1267,29 +1268,11 @@ TEST_F(ParseXdsGrpcServiceTest, RawHeaderValueForNonBinaryHeader) {
   auto xds_grpc_service = Parse(grpc_service);
   EXPECT_EQ(xds_grpc_service.status(),
             absl::InvalidArgumentError("validation failed: ["
-                                       "field:initial_metadata[0].value "
-                                       "error:field not set]"));
+                                       "field:initial_metadata[0].raw_value "
+                                       "error:Illegal header value]"));
 }
 
-TEST_F(ParseXdsGrpcServiceTest, NoHeaderValueSetForBinaryHeader) {
-  xds_client_ = MakeXdsClient("", /*trusted_xds_server=*/true);
-  GrpcService grpc_service;
-  auto* header_value = grpc_service.add_initial_metadata();
-  header_value->set_key("foo-bin");
-  auto* google_grpc = grpc_service.mutable_google_grpc();
-  google_grpc->set_target_uri("dns:server.example.com");
-  google_grpc->add_channel_credentials_plugin()->PackFrom(
-      envoy::extensions::grpc_service::channel_credentials::google_default::v3::
-          GoogleDefaultCredentials());
-  auto xds_grpc_service = Parse(grpc_service);
-  EXPECT_EQ(xds_grpc_service.status(),
-            absl::InvalidArgumentError(
-                "validation failed: ["
-                "field:initial_metadata[0] "
-                "error:either value or raw_value must be set]"));
-}
-
-TEST_F(ParseXdsGrpcServiceTest, NoHeaderValueSetForNonBinaryHeader) {
+TEST_F(ParseXdsGrpcServiceTest, NoHeaderValueSet) {
   xds_client_ = MakeXdsClient("", /*trusted_xds_server=*/true);
   GrpcService grpc_service;
   auto* header_value = grpc_service.add_initial_metadata();
@@ -1301,9 +1284,10 @@ TEST_F(ParseXdsGrpcServiceTest, NoHeaderValueSetForNonBinaryHeader) {
           GoogleDefaultCredentials());
   auto xds_grpc_service = Parse(grpc_service);
   EXPECT_EQ(xds_grpc_service.status(),
-            absl::InvalidArgumentError("validation failed: ["
-                                       "field:initial_metadata[0].value "
-                                       "error:field not set]"));
+            absl::InvalidArgumentError(
+                "validation failed: ["
+                "field:initial_metadata[0] "
+                "error:either value or raw_value must be set]"));
 }
 
 TEST_F(ParseXdsGrpcServiceTest, GoogleGrpcNotSet) {
