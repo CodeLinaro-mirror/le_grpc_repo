@@ -861,6 +861,15 @@ Http2Status ValidateFrameHeader(const uint32_t max_frame_size_setting,
                      ", Max Size = ", max_frame_size_setting));
   }
 
+  if (GPR_UNLIKELY(current_frame_header.type ==
+                       static_cast<uint8_t>(FrameType::kCustomSecurity) &&
+                   current_frame_header.length >
+                       GrpcErrors::kMaxSecurityFrameSize)) {
+    return Http2Status::Http2ConnectionError(
+        Http2ErrorCode::kInternalError,
+        std::string(GrpcErrors::kSecurityFrameTooLarge));
+  }
+
   // RFC 9113 (Section 6.10) requires that if a HEADERS frame does not have
   // END_HEADERS set, it must be followed by a contiguous sequence of
   // CONTINUATION frames for the same stream, ending with END_HEADERS. No other

@@ -424,6 +424,8 @@ inline constexpr uint32_t kHttp2InitialWindowSize = 65535u;
 }  // namespace RFC9113
 
 namespace GrpcErrors {
+inline constexpr uint32_t kMaxSecurityFrameSize = 16u * 1024u;
+
 inline constexpr absl::string_view kTooManyMetadata =
     "gRPC Error : A gRPC server can send upto 1 initial metadata followed by "
     "upto 1 trailing metadata.";
@@ -439,6 +441,9 @@ inline constexpr absl::string_view kUnsolicitedSettingsAck =
     "gRPC Transport Error : Received unsolicited SETTINGS ACK.";
 inline constexpr absl::string_view kFailedToEnqueueStream =
     "gRPC Transport Error : Failed to enqueue stream to writable stream list";
+inline constexpr absl::string_view kSecurityFrameTooLarge =
+    "gRPC Transport Error : Security frame is larger than the maximum allowed "
+    "size of 16KB";
 }  // namespace GrpcErrors
 
 }  // namespace grpc_core

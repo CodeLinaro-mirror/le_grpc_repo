@@ -35,7 +35,7 @@ void grpc_chttp2_security_frame_create(grpc_slice_buffer* payload,
                                        grpc_slice_buffer* frame);
 
 absl::Status grpc_chttp2_security_frame_parser_begin_frame(
-    grpc_chttp2_security_frame_parser* parser);
+    grpc_chttp2_security_frame_parser* parser, uint32_t length);
 
 grpc_error_handle grpc_chttp2_security_frame_parser_parse(
     void* parser, grpc_chttp2_transport* t, grpc_chttp2_stream* s,

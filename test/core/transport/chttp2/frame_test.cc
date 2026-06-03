@@ -1356,6 +1356,31 @@ TEST_P(ValidateFrameHeaderTest, ValidateFrameHeader) {
                     Http2ErrorCode::kProtocolError,
                     is_client ? RFC9113::kFirstSettingsFrameClient
                               : RFC9113::kFirstSettingsFrameServer));
+
+  // Step: Test security frame size exactly equal to 16KB maximum limit.
+  // Expected outcome: Validation should succeed because it is within the limit.
+  header = {/*length=*/16384u, /*type=kCustomSecurity*/ 200u, /*flags=*/0u,
+            /*stream_id=*/0u};
+  EXPECT_TRUE(ValidateFrameHeader(/*max_frame_size_setting=*/65535u,
+                                  /*incoming_header_in_progress=*/false,
+                                  /*incoming_header_stream_id=*/0u, header,
+                                  kLastStreamId, is_client,
+                                  /*is_first_settings_processed=*/true, tracker)
+                  .IsOk());
+
+  // Step: Test security frame size exceeding 16KB by 1 byte.
+  // Expected outcome: Validation should fail with kInternalError.
+  header = {/*length=*/16385u, /*type=kCustomSecurity*/ 200u, /*flags=*/0u,
+            /*stream_id=*/0u};
+  EXPECT_THAT(
+      ValidateFrameHeader(/*max_frame_size_setting=*/65535u,
+                          /*incoming_header_in_progress=*/false,
+                          /*incoming_header_stream_id=*/0u, header,
+                          kLastStreamId, is_client,
+                          /*is_first_settings_processed=*/true, tracker),
+      Http2StatusIs(Http2Status::Http2ErrorType::kConnectionError,
+                    Http2ErrorCode::kInternalError,
+                    std::string(GrpcErrors::kSecurityFrameTooLarge)));
 }
 
 // Validates that exceeding maximum limits for empty DATA frames, empty

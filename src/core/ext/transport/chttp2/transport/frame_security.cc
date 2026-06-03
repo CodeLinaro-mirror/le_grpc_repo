@@ -28,6 +28,8 @@
 #include "src/core/util/grpc_check.h"
 #include "absl/status/status.h"
 
+constexpr uint32_t kMaxSecurityFrameSize = 16u * 1024u;
+
 absl::Status grpc_chttp2_security_frame_parser_parse(void* parser,
                                                      grpc_chttp2_transport* t,
                                                      grpc_chttp2_stream* /*s*/,
@@ -52,7 +54,12 @@ absl::Status grpc_chttp2_security_frame_parser_parse(void* parser,
 }
 
 absl::Status grpc_chttp2_security_frame_parser_begin_frame(
-    grpc_chttp2_security_frame_parser* parser) {
+    grpc_chttp2_security_frame_parser* parser, const uint32_t length) {
+  if (GPR_UNLIKELY(length > kMaxSecurityFrameSize)) {
+    return GRPC_ERROR_CREATE(
+        "gRPC Transport Error : Security frame is larger than the maximum "
+        "allowed size of 16KB");
+  }
   parser->payload.Clear();
   return absl::OkStatus();
 }
