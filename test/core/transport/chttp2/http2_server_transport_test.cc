@@ -239,7 +239,10 @@ TEST_F(Http2ServerTransportTest, TestHttp2ServerTransportWriteFromCall) {
        helper_.SerializedHeaderFrame(std::string(kGrpcStatusCancelled.begin(),
                                                  kGrpcStatusCancelled.end()),
                                      /*stream_id=*/1, /*end_headers=*/true,
-                                     /*end_stream=*/true)});
+                                     /*end_stream=*/true),
+       helper_.SerializedResetStreamFrame(
+           /*stream_id=*/1,
+           /*error_code=*/static_cast<uint32_t>(Http2ErrorCode::kNoError))});
   step->Wait();
 }
 
