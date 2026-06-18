@@ -37,6 +37,12 @@ class TcpTraceExtension {
   virtual void EnableTcpTelemetry(
       grpc_core::RefCountedPtr<grpc_core::CollectionScope> collection_scope,
       bool is_control_endpoint) = 0;
+
+  virtual void EnableTcpTelemetry(
+      grpc_core::RefCountedPtr<grpc_core::CollectionScope> collection_scope,
+      bool is_control_endpoint, bool trace_full_buffer) {
+    EnableTcpTelemetry(std::move(collection_scope), is_control_endpoint);
+  }
 };
 
 }  // namespace grpc_event_engine::experimental
