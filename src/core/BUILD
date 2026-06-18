@@ -9489,6 +9489,7 @@ grpc_cc_library(
         "shared_bit_gen",
         "slice_buffer",
         "status_flag",
+        "tcp_tracer",
         "time",
         "transport_framing_endpoint_extension",
         "try_seq",
