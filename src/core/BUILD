@@ -9045,6 +9045,7 @@ grpc_cc_library(
         "http2_settings_promises",
         "http2_status",
         "internal_channel_arg_names",
+        "latch",
         "loop",
         "map",
         "metadata_info",
