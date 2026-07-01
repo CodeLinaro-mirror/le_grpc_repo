@@ -9234,6 +9234,7 @@ grpc_cc_library(
     ],
     external_deps = [
         "absl/log",
+        "absl/random:distributions",
         "absl/status:statusor",
         "absl/strings",
     ],
@@ -9247,6 +9248,7 @@ grpc_cc_library(
         ":http2_transport",
         ":metadata_info",
         ":ph2_stream",
+        ":shared_bit_gen",
         ":slice_buffer",
         "//:chttp2_frame",
         "//:debug_location",
@@ -9670,6 +9672,7 @@ grpc_cc_library(
         "ph2_stream",
         "sync",
         "time",
+        "useful",
         "write_cycle",
         "write_size_policy",
         ":event_engine_tcp_socket_utils",

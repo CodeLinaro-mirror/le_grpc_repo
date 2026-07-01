@@ -382,7 +382,8 @@ Http2Status Http2ClientTransport::ProcessIncomingFrame(
          "stream_id="
       << frame.stream_id << ", error_code=" << frame.error_code << " }";
 
-  read_context_.OnResetFrameReceived();
+  GRPC_UNUSED ShouldSendPing should_send_ping =
+      read_context_.OnResetFrameReceived();
   Http2ErrorCode error_code = FrameErrorCodeToHttp2ErrorCode(frame.error_code);
   absl::Status status = absl::Status(ErrorCodeToAbslStatusCode(error_code),
                                      "Reset stream frame received.");
@@ -1231,7 +1232,8 @@ Http2ClientTransport::Http2ClientTransport(
       next_stream_id_(/*Initial Stream ID*/ 1),
       should_reset_ping_clock_(false),
       read_context_(MaxNewStreamsPerRead(channel_args), endpoint_, kIsClient,
-                    GetMaxSecurityFrameSize(channel_args)),
+                    GetMaxSecurityFrameSize(channel_args),
+                    GetPingOnRstStreamPercent(channel_args, kIsClient)),
       transport_write_context_(kIsClient),
       ping_manager_(std::nullopt),
       keepalive_manager_(std::nullopt),
