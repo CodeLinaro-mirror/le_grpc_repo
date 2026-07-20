@@ -796,6 +796,7 @@ grpc_cc_library(
         "absl/log:check",
         "absl/log:log",
         "absl/strings",
+        "gtest",
     ],
     deps = [
         ":http2_frame_test_helper",
