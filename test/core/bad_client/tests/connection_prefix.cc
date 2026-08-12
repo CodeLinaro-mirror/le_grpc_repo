@@ -33,38 +33,109 @@ static void verifier(grpc_server* server, grpc_completion_queue* cq,
   }
 }
 
+TEST(ConnectionPrefixTest, Test1) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "X", 0);
+}
+
+TEST(ConnectionPrefixTest, Test2) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test3) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test4) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRIX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test5) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI X", 0);
+}
+
+TEST(ConnectionPrefixTest, Test6) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI *X", 0);
+}
+
+TEST(ConnectionPrefixTest, Test7) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * X", 0);
+}
+
+TEST(ConnectionPrefixTest, Test8) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test9) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test10) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test11) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTPX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test12) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/X", 0);
+}
+
+TEST(ConnectionPrefixTest, Test13) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2X", 0);
+}
+
+TEST(ConnectionPrefixTest, Test14) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.X", 0);
+}
+
+TEST(ConnectionPrefixTest, Test15) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0X", 0);
+}
+
+TEST(ConnectionPrefixTest, Test16) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\rX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test17) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\nX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test18) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\rX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test19) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test20) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test21) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSMX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test22) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSM\rX", 0);
+}
+
+TEST(ConnectionPrefixTest, Test23) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSM\r\nX",
+                           0);
+}
+
+TEST(ConnectionPrefixTest, Test24) {
+  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSM\r\n\rX",
+                           0);
+}
+
 int main(int argc, char** argv) {
   grpc::testing::TestEnvironment env(&argc, argv);
   ::testing::InitGoogleTest(&argc, argv);
   grpc_init();
-
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "X", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRIX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI X", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI *X", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * X", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTPX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/X", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2X", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.X", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0X", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\rX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\nX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\rX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSMX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSM\rX", 0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSM\r\nX",
-                           0);
-  GRPC_RUN_BAD_CLIENT_TEST(verifier, nullptr, "PRI * HTTP/2.0\r\n\r\nSM\r\n\rX",
-                           0);
-
+  int result = RUN_ALL_TESTS();
   grpc_shutdown();
-  return 0;
+  return result;
 }

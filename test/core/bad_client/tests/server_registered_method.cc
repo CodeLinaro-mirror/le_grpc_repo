@@ -76,56 +76,88 @@ static void verifier_fails(grpc_server* server, grpc_completion_queue* cq,
   }
 }
 
-int main(int argc, char** argv) {
-  grpc::testing::TestEnvironment env(&argc, argv);
-  ::testing::InitGoogleTest(&argc, argv);
-  grpc_init();
-
+TEST(ServerRegisteredMethodTest, BodyGeneratedWith) {
   // body generated with
   // tools/codegen/core/gen_server_registered_method_bad_client_test_body.py
   GRPC_RUN_BAD_CLIENT_TEST(verifier_fails, nullptr,
                            PFX_STR "\x00\x00\x00\x00\x00\x00\x00\x00\x01",
                            GRPC_BAD_CLIENT_DISCONNECT);
+}
+
+TEST(ServerRegisteredMethodTest, Test2) {
   GRPC_RUN_BAD_CLIENT_TEST(verifier_fails, nullptr,
                            PFX_STR "\x00\x00\x01\x00\x00\x00\x00\x00\x01\x00",
                            GRPC_BAD_CLIENT_DISCONNECT);
+}
+
+TEST(ServerRegisteredMethodTest, Test3) {
   GRPC_RUN_BAD_CLIENT_TEST(verifier_fails, nullptr,
                            PFX_STR
                            "\x00\x00\x02\x00\x00\x00\x00\x00\x01\x00\x00",
                            GRPC_BAD_CLIENT_DISCONNECT);
+}
+
+TEST(ServerRegisteredMethodTest, Test4) {
   GRPC_RUN_BAD_CLIENT_TEST(verifier_fails, nullptr,
                            PFX_STR
                            "\x00\x00\x03\x00\x00\x00\x00\x00\x01\x00\x00\x00",
                            GRPC_BAD_CLIENT_DISCONNECT);
+}
+
+TEST(ServerRegisteredMethodTest, Test5) {
   GRPC_RUN_BAD_CLIENT_TEST(
       verifier_fails, nullptr,
       PFX_STR "\x00\x00\x04\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00",
       GRPC_BAD_CLIENT_DISCONNECT);
+}
+
+TEST(ServerRegisteredMethodTest, Test6) {
   GRPC_RUN_BAD_CLIENT_TEST(
       verifier_succeeds, nullptr,
       PFX_STR "\x00\x00\x05\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00", 0);
+}
+
+TEST(ServerRegisteredMethodTest, Test7) {
   GRPC_RUN_BAD_CLIENT_TEST(
       verifier_fails, nullptr,
       PFX_STR "\x00\x00\x05\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x01",
       GRPC_BAD_CLIENT_DISCONNECT);
+}
+
+TEST(ServerRegisteredMethodTest, Test8) {
   GRPC_RUN_BAD_CLIENT_TEST(
       verifier_succeeds, nullptr,
       PFX_STR "\x00\x00\x06\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00",
       0);
+}
+
+TEST(ServerRegisteredMethodTest, Test9) {
   GRPC_RUN_BAD_CLIENT_TEST(
       verifier_fails, nullptr,
       PFX_STR "\x00\x00\x05\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x02",
       GRPC_BAD_CLIENT_DISCONNECT);
+}
+
+TEST(ServerRegisteredMethodTest, Test10) {
   GRPC_RUN_BAD_CLIENT_TEST(
       verifier_fails, nullptr,
       PFX_STR "\x00\x00\x06\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x02\x00",
       GRPC_BAD_CLIENT_DISCONNECT);
+}
+
+TEST(ServerRegisteredMethodTest, Test11) {
   GRPC_RUN_BAD_CLIENT_TEST(
       verifier_succeeds, nullptr,
       PFX_STR
       "\x00\x00\x07\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x02\x00\x00",
       0);
+}
 
+int main(int argc, char** argv) {
+  grpc::testing::TestEnvironment env(&argc, argv);
+  ::testing::InitGoogleTest(&argc, argv);
+  grpc_init();
+  int result = RUN_ALL_TESTS();
   grpc_shutdown();
-  return 0;
+  return result;
 }
