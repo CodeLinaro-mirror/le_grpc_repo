@@ -19,9 +19,12 @@
 #include <utility>
 #include <vector>
 
+#include "src/core/lib/promise/if.h"
+#include "src/core/lib/promise/map.h"
 #include "src/proto/grpc/channelz/v2/promise.upb.h"
 #include "upb/mem/arena.hpp"
 #include "gtest/gtest.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 
 namespace grpc_core {
@@ -353,6 +356,219 @@ TEST(SeqTest, NestedSeqWithPending) {
   EXPECT_TRUE(result2.ready());
   EXPECT_STREQ(execution_order.c_str(), "34");
   EXPECT_EQ(result2.value(), 50);
+}
+
+// Helper class to track destructor calls.
+
+class TestDestruct {
+ public:
+  explicit TestDestruct(std::string* execution_order = nullptr,
+                        std::string destruct_token = "")
+      : execution_order_(execution_order),
+        destruct_token_(std::move(destruct_token)) {}
+
+  TestDestruct(const TestDestruct&) = delete;
+  TestDestruct& operator=(const TestDestruct&) = delete;
+
+  TestDestruct(TestDestruct&& other) noexcept
+      : execution_order_(other.execution_order_),
+        destruct_token_(std::move(other.destruct_token_)) {}
+
+  TestDestruct& operator=(TestDestruct&& other) noexcept {
+    if (this != &other) {
+      execution_order_ = other.execution_order_;
+      destruct_token_ = std::move(other.destruct_token_);
+    }
+    return *this;
+  }
+
+  ~TestDestruct() {
+    if (execution_order_ != nullptr) {
+      absl::StrAppend(execution_order_, destruct_token_);
+    }
+  }
+
+ private:
+  std::string* execution_order_;
+  std::string destruct_token_;
+};
+
+// Test that a single pending promise in a seq is destroyed correctly.
+TEST(SeqTest, DestructorSinglePending) {
+  std::string execution_order;
+
+  {
+    auto seq_promise = Seq(
+        [&execution_order]() -> Poll<absl::Status> {
+          absl::StrAppend(&execution_order, "1");
+          return absl::OkStatus();
+        },
+        [destruct_assert = TestDestruct(&execution_order, "~2"),
+         &execution_order]() {
+          absl::StrAppend(&execution_order, "2");
+          return
+              [&execution_order, wait_for = 2,
+               w2_destruct = TestDestruct(
+                   &execution_order, "~w2")]() mutable -> Poll<absl::Status> {
+                absl::StrAppend(&execution_order, "w2");
+                if (wait_for-- > 0) {
+                  return Pending{};
+                }
+                return absl::OkStatus();
+              };
+        });
+
+    EXPECT_STREQ(execution_order.c_str(), "");
+
+    auto result1 = seq_promise();
+    EXPECT_TRUE(result1.pending());
+
+    EXPECT_STREQ(execution_order.c_str(), "12~2w2");
+
+    auto result2 = seq_promise();
+    EXPECT_TRUE(result2.pending());
+    EXPECT_STREQ(execution_order.c_str(), "12~2w2w2");
+
+    auto result3 = seq_promise();
+    EXPECT_TRUE(result3.ready());
+    EXPECT_EQ(result3.value(), absl::OkStatus());
+  }
+
+  EXPECT_STREQ(execution_order.c_str(), "12~2w2w2w2~w2");
+}
+
+// Test that multiple pending promises in a seq are destroyed correctly.
+TEST(SeqTest, DestructorMultiplePending) {
+  std::string execution_order;
+
+  {
+    auto seq_promise = Seq(
+        [&execution_order]() -> Poll<absl::Status> {
+          absl::StrAppend(&execution_order, "1");
+          return absl::OkStatus();
+        },
+        [destruct_assert = TestDestruct(&execution_order, "~2"),
+         &execution_order]() {
+          absl::StrAppend(&execution_order, "2");
+          return
+              [w2_destruct = TestDestruct(&execution_order, "~w2"),
+               &execution_order, wait_for = 2]() mutable -> Poll<absl::Status> {
+                absl::StrAppend(&execution_order, "w2");
+                if (wait_for-- > 0) {
+                  return Pending{};
+                }
+                return absl::OkStatus();
+              };
+        },
+        [destruct_assert2 = TestDestruct(&execution_order, "~3"),
+         &execution_order]() {
+          absl::StrAppend(&execution_order, "3");
+          return
+              [w3_destruct = TestDestruct(&execution_order, "~w3"),
+               &execution_order, wait_for = 2]() mutable -> Poll<absl::Status> {
+                absl::StrAppend(&execution_order, "w3");
+                if (wait_for-- > 0) {
+                  return Pending{};
+                }
+                return absl::OkStatus();
+              };
+        });
+    EXPECT_STREQ(execution_order.c_str(), "");
+
+    auto result1 = seq_promise();
+    EXPECT_TRUE(result1.pending());
+    EXPECT_STREQ(execution_order.c_str(), "12~2w2");
+
+    auto result2 = seq_promise();
+    EXPECT_TRUE(result2.pending());
+    EXPECT_STREQ(execution_order.c_str(), "12~2w2w2");
+
+    auto result3 = seq_promise();
+    EXPECT_TRUE(result3.pending());
+    EXPECT_STREQ(execution_order.c_str(), "12~2w2w2w2~w23~3w3");
+
+    auto result4 = seq_promise();
+    EXPECT_TRUE(result4.pending());
+    EXPECT_STREQ(execution_order.c_str(), "12~2w2w2w2~w23~3w3w3");
+
+    auto result5 = seq_promise();
+    EXPECT_TRUE(result5.ready());
+    EXPECT_EQ(result5.value(), absl::OkStatus());
+    EXPECT_STREQ(execution_order.c_str(), "12~2w2w2w2~w23~3w3w3w3");
+  }
+
+  EXPECT_STREQ(execution_order.c_str(), "12~2w2w2w2~w23~3w3w3w3~w3");
+}
+
+// Test that a seq with a map is destroyed correctly.
+TEST(SeqTest, DestructorWithMapAndIf) {
+  std::string execution_order;
+
+  {
+    auto seq_promise = Seq(
+        // Step 1: simple promise
+        [&execution_order]() -> Poll<absl::Status> {
+          absl::StrAppend(&execution_order, "1,");
+          return absl::OkStatus();
+        },
+        // Step 2: factory returning a Map
+        [destruct_assert = TestDestruct(&execution_order, "~2,"),
+         &execution_order]() {
+          absl::StrAppend(&execution_order, "2,");
+          return Map(
+              [inner_destruct = TestDestruct(&execution_order, "~map_promise,"),
+               &execution_order, wait_for = 1]() mutable -> Poll<absl::Status> {
+                absl::StrAppend(&execution_order, "map_promise,");
+                if (wait_for-- > 0) {
+                  return Pending{};
+                }
+                return absl::OkStatus();
+              },
+              // The callback function processing the result
+              [fn_destruct = TestDestruct(&execution_order, "~map_fun,"),
+               &execution_order](absl::Status status) {
+                absl::StrAppend(&execution_order, "map_fun,");
+                return status;
+              });
+        },
+        // Step 3: If combinator in a factory lambda
+        [&execution_order]() {
+          return If(
+              // Condition
+              []() { return true; },
+              // True branch WITH destructible object
+              [if_destruct = TestDestruct(&execution_order, "~3,"),
+               &execution_order]() {
+                return [&execution_order]() -> Poll<absl::Status> {
+                  absl::StrAppend(&execution_order, "3,");
+                  return absl::OkStatus();
+                };
+              },
+              // False branch
+              []() {
+                return []() -> Poll<absl::Status> {
+                  return absl::CancelledError();
+                };
+              });
+        });
+
+    EXPECT_STREQ(execution_order.c_str(), "");
+
+    auto result1 = seq_promise();
+    EXPECT_TRUE(result1.pending());
+    EXPECT_STREQ(execution_order.c_str(), "1,2,~2,map_promise,");
+    auto result2 = seq_promise();
+    EXPECT_TRUE(result2.ready());
+    EXPECT_EQ(result2.value(), absl::OkStatus());
+
+    EXPECT_STREQ(
+        execution_order.c_str(),
+        "1,2,~2,map_promise,map_promise,map_fun,~map_fun,~map_promise,3,");
+  }
+
+  EXPECT_STREQ(
+      execution_order.c_str(),
+      "1,2,~2,map_promise,map_promise,map_fun,~map_fun,~map_promise,3,~3,");
 }
 
 }  // namespace grpc_core
