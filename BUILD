@@ -28,6 +28,7 @@ load(
     "grpc_upb_proto_reflection_library",
     "python_config_settings",
 )
+load("//security/audits/privacy_boost/insecure_rpc:allowlist.bzl", "GRPC_VISIBILITY_LIST")
 
 licenses(["reciprocal"])
 
@@ -1231,14 +1232,30 @@ grpc_cc_library(
     ],
 )
 
-# This library is required to support insecure credentials.
+# This library is required to support insecure channel credentials.
 grpc_cc_library(
     name = "grpc++_insecure_credentials",
     srcs = [
         "src/cpp/client/insecure_credentials.cc",
-        "src/cpp/server/insecure_server_credentials.cc",
     ],
-    visibility = ["//bazel:insecure_credentials"],
+    visibility = GRPC_VISIBILITY_LIST + [
+        "//bazel:insecure_credentials",
+    ],
+    deps = [
+        "gpr",
+        "grpc++_base",
+        "grpc++_public_hdrs",
+        "grpc_public_hdrs",
+    ],
+)
+
+grpc_cc_library(
+    name = "grpc++_insecure_credentials_for_tests",
+    testonly = True,
+    srcs = [
+        "src/cpp/client/insecure_credentials.cc",
+    ],
+    visibility = ["//visibility:public"],
     deps = [
         "gpr",
         "grpc++_base",
@@ -2654,6 +2671,7 @@ grpc_cc_library(
         "src/cpp/common/tls_certificate_provider.cc",
         "src/cpp/common/tls_certificate_verifier.cc",
         "src/cpp/common/tls_credentials_options.cc",
+        "src/cpp/server/insecure_server_credentials.cc",
         "src/cpp/server/secure_server_credentials.cc",
     ],
     hdrs = GRPCXX_HDRS + [
