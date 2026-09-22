@@ -1375,6 +1375,32 @@ std::optional<RefCountedPtr<Stream>> Http2ServerTransport::MakeStream(
                                 settings_->peer().allow_true_binary_metadata());
 }
 
+// Based on CHTTP2's use of GetConnectionMaxConcurrentRequests in parsing.cc
+void Http2ServerTransport::UpdateMaxConcurrentStreamsFromStreamQuota() {
+  uint32_t current_open_streams = 0;
+  {
+    MutexLock lock(&transport_mutex_);
+    // Unlike CHTTP2, PH2 has no `extra_streams` counter. Tarpitted streams stay
+    // in stream_list_ until they are cleaned up, so stream_list_ already
+    // accounts for them.
+    current_open_streams = GetActiveStreamCountLocked();
+  }
+  // The lock is intentionally released before touching settings_. settings_ is
+  // only ever touched from the transport party, so it needs no lock, and we do
+  // not want to hold transport_mutex_ across unrelated work.
+  const uint32_t max_concurrent_streams =
+      stream_quota_->GetConnectionMaxConcurrentRequests(current_open_streams);
+  GRPC_HTTP2_SERVER_DLOG
+      << "Http2ServerTransport::UpdateMaxConcurrentStreamsFromStreamQuota "
+         "current_open_streams="
+      << current_open_streams
+      << " max_concurrent_streams=" << max_concurrent_streams;
+  // UpdateMaxConcurrentStreams clamps to the value configured via
+  // GRPC_ARG_MAX_CONCURRENT_STREAMS. The updated local settings are sent to the
+  // peer by MaybeGetSettingsAndSettingsAckFrames in the next write cycle.
+  settings_->mutable_local().UpdateMaxConcurrentStreams(max_concurrent_streams);
+}
+
 Http2Status Http2ServerTransport::IncomingStream(
     ClientMetadataHandle&& metadata, const uint32_t stream_id) {
   if (shutdown_tracker_.IsPartyShutdownInitiated()) {
@@ -1410,6 +1436,7 @@ Http2Status Http2ServerTransport::IncomingStream(
   }
   RefCountedPtr<Stream> stream = std::move(result.value());
   AddToStreamList(stream);
+  UpdateMaxConcurrentStreamsFromStreamQuota();
   stream->SetInitialMetadataReceived();
 
   stream->GetCallInitiator().SpawnGuarded(
@@ -2025,6 +2052,7 @@ Http2ServerTransport::Http2ServerTransport(
       memory_owner_(channel_args.GetObject<ResourceQuota>()
                         ->memory_quota()
                         ->CreateMemoryOwner()),
+      stream_quota_(channel_args.GetObject<ResourceQuota>()->stream_quota()),
       flow_control_(
           /*peer_name=*/read_context_.peer_string().as_string_view(),
           channel_args.GetBool(GRPC_ARG_HTTP2_BDP_PROBE).value_or(true),
