@@ -30,6 +30,7 @@
 #include "opentelemetry/sdk/metrics/export/metric_producer.h"
 #include "opentelemetry/sdk/metrics/meter_provider.h"
 #include "opentelemetry/sdk/metrics/metric_reader.h"
+#include "opentelemetry/version.h"
 #include "src/core/config/core_configuration.h"
 #include "src/core/lib/channel/promise_based_filter.h"
 #include "src/core/telemetry/call_tracer.h"
@@ -111,6 +112,15 @@ struct PointTypeVisitor {
         ToString(point.max_), ToString(point.counts_), point.count_,
         ToString(point.record_min_max_));
   }
+
+#if OPENTELEMETRY_VERSION_MAJOR > 1 || \
+    (OPENTELEMETRY_VERSION_MAJOR == 1 && OPENTELEMETRY_VERSION_MINOR >= 21)
+  std::string operator()(
+      const opentelemetry::sdk::metrics::Base2ExponentialHistogramPointData&
+      /*point*/) {
+    return "<Base2ExponentialHistogramPointData>";
+  }
+#endif
 
   std::string operator()(
       const opentelemetry::sdk::metrics::DropPointData& /*point*/) {
